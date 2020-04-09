@@ -1,0 +1,179 @@
+##################################################################
+##IN.CIBD_SINGLE	                                        ##
+##Script to deposits cluster on substrate.			##
+##Compute RDFs and voronoi after impaction			##
+##################################################################
+##Dependencies	:                   				##
+##Influences	: lammpstrj.*, post/*, log.*, *.restart         ##
+##################################################################
+## ver. : 2019-07-24, Syamal Praneeth Chilakalapudi, INT, KIT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#------------------------------------------------------------------READ DATA AND VARIABLES
+variable	pot string ${args}
+next		args
+variable	e1 string ${args}
+next		args
+variable	e2 string ${args}
+next		args
+variable	x equal ${args}
+next		args
+variable	y equal ${args}
+next		args
+variable	frac equal $y/($x+$y)
+variable	en equal ${args}
+next		args
+variable	T1 equal ${args}
+next		args
+variable	dia equal ${args}
+variable	r equal ${args}*5
+
+variable	th equal ${T1}/10
+variable	clusfile string "data.clus_${dia}nm"
+variable	substratefile string "restart.substrate_single_${dia}nm"
+#read_restart	restart.substrate
+#fix		layrs all property/atom i_lyr
+read_restart	${substratefile}
+#read_restart restart.mpiio.bulk
+
+variable	top equal bound(all,ymax)
+variable	filmtop equal "v_top"
+variable	BoxL equal lx
+variable	dispX equal random(0,${BoxL},475414)
+variable	dispY equal random(0,${BoxL},475414)
+
+info		system
+
+#----------------------------------------------------------------INTITIALIZE
+neigh_modify	every 1 delay 0 check yes
+pair_style	eam/fs
+pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}
+mass		1 63.546
+mass		2 91.224
+min_style	fire
+minimize	1e-10  1e-10  100  100
+group		cluster empty
+
+#----------------------------------------------------------------COMPUTES AND THERMO
+compute         c1 all temp
+compute_modify  c1 dynamic/dof yes extra/dof 0
+compute         c2 cluster temp
+compute_modify  c2 dynamic/dof yes extra/dof 0
+thermo_style    custom step pe ke press temp c_c2
+thermo_modify   format float "% .6e"
+thermo_modify   temp c1
+thermo_modify	lost warn
+thermo          ${th}
+
+#-----------------------------------------------------------------FIXES FOR SUBSTRATE
+fix		layrs all property/atom i_lyr
+set		group buffr i_lyr 1
+set		group statd i_lyr 2
+set		group fixed i_lyr 3
+
+#velocity        buffr create 300 74657362 mom yes rot yes
+fix		f1 buffr nve
+#fix		f2 statd nve
+#fix		f3 statd langevin 300 300 0.001
+fix		f3 statd nvt temp 300 300 0.01
+velocity        fixed set NULL NULL NULL
+fix		f4 fixed setforce 0 0 0
+
+#-------------------------------------------------------------------BALANCE
+comm_style      tiled
+balance		1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${dia}nm_${en}eV
+
+#Snippet below not necessary because they are being imported from restart file
+#velocity	buffr scale 300 dist gaussian
+#fix		f1 buffr nve
+#fix		f2 statd nvt temp 300 300 0.01
+#velocity        fixed set NULL NULL NULL
+#fix		f3 fixed setforce 0 0 0
+#fix		f4 clust nvt temp 300 300 0.01
+#region		box block INF INF INF INF INF INF
+#region		subst block INF INF INF INF INF INF side in
+#run		${T1}
+
+#------------------------------------------------------------------INTRODUCE CLUSTER 
+group		cluster id <= 0
+read_data	${clusfile} add append group cluster offset 2 0 0 0 0	#data file of cluster
+group		substrate subtract all cluster
+set		group cluster i_lyr 4
+
+variable	diff equal ($(lx)-v_top)
+variable	clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
+variable	clusdia equal ${clusdiaeval}
+print		"approx clus diameter v_clusdia angstrom"
+variable	up equal "2*(v_clusdia)"
+change_box	all z delta 0 ${up} units box
+
+#-----------------------------------------------------------------FIXES FOR CLUSTER
+fix		f5 cluster nve
+
+#------------------------------------------------------------------SET DEPOSIT CONDITIONS
+#change_box	all z delta 0 ${up} units box
+#molecule	clus clusmol_565.txt offset 2 0 0 0 0
+variable	mclus equal mass(cluster)*(1.6605e-24)*(1e-3)	#metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
+variable	E equal ${en}*(1.6e-19)				#units: eV = 1.6e-19 Joules
+variable	cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100	#metal units: vel = 1 Angstr/ps = 100 m/s
+variable	dxx   equal  0
+variable	dyy   equal  0
+variable	dzz   equal  "v_filmtop+1.4*(v_clusdia)"
+variable	flyT equal "(v_dzz-v_filmtop)/(abs(v_cvel)*(0.001))"
+variable	runT equal "floor(v_flyT+v_T1)" #00
+displace_atoms  cluster move ${dxx} ${dyy} ${dzz} units box
+
+velocity        cluster create 300 74657362 mom yes rot yes
+velocity        cluster set 0 0 ${cvel} units box
+
+
+print		'deposit height ${dzz} Angstrom'
+print		'cvel is ${cvel} Angstrom/picosecs'
+print		'mclus is ${mclus} grams/mol'
+print		'Energy is ${E} V'
+print		'total runtime ${runT} will be split into 3*fly_T + T1-2*(fly_T) for visualization purposes'
+
+#quit
+
+#-------------------------------------------------------------------DEPOSIT
+variable	dr equal "floor(v_flyT/15)"
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
+variable	Tdep equal "floor(3*(v_flyT))"
+run		${Tdep}
+undump		d2
+dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
+variable	Trest equal "floor(v_T1-2*(v_flyT))"
+run		${Trest}
+
+write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
+
+#variable        tz equal $(zhi)
+#variable        tz1 equal $(zhi)+2
+#change_box	all z delta -1 25 boundary p p f
+#variable	tz2 equal $(zhi)-15
+#region		dep block -1 1 -1 1 ${tz1} ${tz2} side in
+#fix		f5 clust deposit 1 0 1 17345 attempt 100 region dep vz ${cvel} ${cvel} &
+#target 0 0 ${tz1} mol clus units box
+#run		0
+#run		10000
+
+#----------------------------------------------------------GROUPS AND COMPUTES
+if "${en} == 50" then "fix             r3 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
+
+group		clus type 3 4
+compute		vor clus voronoi/atom
+
+compute         prdf11 all rdf 100 1 1
+compute         prdf22 all rdf 100 2 2
+compute         prdf33 all rdf 100 3 3
+compute         prdf44 all rdf 100 4 4
+compute         rdfclus all rdf 100 3 3 3 4 3 4 4 4 #cutoff 3.5
+compute         rdfbulk all rdf 100 1 1 1 2 2 1 2 2 #cutoff 3.5
+
+run		0 pre yes post no
+write_dump      all custom data/dump.voronoi_${en}eV id type x y z c_vor[*]
+
+fix             r2 all ave/time 1 1 1 c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
+
+run		0 pre yes post no
