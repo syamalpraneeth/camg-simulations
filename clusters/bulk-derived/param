@@ -1,8 +1,0 @@
-Cu-Zr_3.eam.fs	#pair_coef
-Cu		#element1
-Zr		#element2
-50		#composition x
-50		#composition y
-6		#diameter of cluster in nanometers
-2000000		#equilibriation duration
-19500000	#quench duration
