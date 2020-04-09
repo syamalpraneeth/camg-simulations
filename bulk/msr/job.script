@@ -1,0 +1,17 @@
+# Lines starting with #PBS are commands for Torque
+
+#PBS -l nodes=1:ppn=27,walltime=150:00:00
+#PBS -N cuzr_50_50_bulk
+#PBS -o bulk.out
+#PBS -M syamal.chilakalapudi@kit.edu
+#PBS -m ae
+#PBS -j oe
+
+cd ${PBS_O_WORKDIR} #Changes into the directory from where you submitted:
+cat ${PBS_NODEFILE} #Prints all the nodes you requested
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+
+#RUN SCRIPT HERE
+mpirun -np 27 ~/local/lammps-22Aug18/src/lmp_mpi -in in.glass # to start with 8 mpi threads - suggested by Timo Strunk
+exit $?
