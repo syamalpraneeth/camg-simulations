@@ -1,0 +1,43 @@
+#!/bin/sh
+
+##################################################################
+##JOB.SCRIPT							##                               
+##								##
+##Dependencies	:						##
+##Influences	:						##
+##################################################################
+## ver. : 2019--, Syamal Praneeth Chilakalapudi, KIT, INT	##                            
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#Lines starting with #PBS are commands for Torque
+
+#SBATCH --nodes=3
+#SBATCH --cpus-per-task=15
+##SBATCH --ntasks-per-node=12
+##SBATCH --time=0:00:00
+#SBATCH --job-name=clus_300-cuzr
+#SBATCH --output=output.out
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+#SBATCH --error=output.out
+##SBATCH --partition=long
+
+cd ${SLURM_SUBMIT_DIR} #Changes into the directory from where you submitted:
+${SLURM_JOB_NODELIST} #Prints all the nodes you requested
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+
+cp ../../../../dev/cibd/penghui/step3/* .
+
+#RUN SCRIPT HERE
+mpirun -np 45 ~/local/lammps/src/lmp_mpi -in in.CuZr_deposit
+
+#cp *.lammpstrj log.lammps output.out ${jID}
+#wait
+#rm -rf *.lammpstrj log.lammps output.out
+
+exit $?
+~                                                                                                                  
+~                              

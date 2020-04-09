@@ -1,0 +1,119 @@
+##################################################################
+##IN.CUZR_DEPOSIT	                                        ##
+##Script to deposits prequenched clusters at random locations	##
+##on substrate. Compute RDFs and voronoi after impaction	##
+##################################################################
+##Dependencies	: ../step1/*, ../step2/*                        ##
+##Influences	: lammpstrj.*, post/*, log.*, *.restart         ##
+##################################################################
+## ver. : 2019-07-24, Syamal Praneeth Chilakalapudi, INT, KIT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#--------------------------------------------------------------------INITIALISE
+units           metal
+boundary        p p p
+atom_style      atomic 
+atom_modify map array   
+
+read_data	data.Substrate
+mass		1 63.546
+mass		2 91.224
+pair_style      eam/alloy
+pair_coeff      * * ZrCu.lammps.eam Zr Cu
+
+variable        clusT equal 300
+variable	top equal bound(all,ymax)
+variable	inter equal ${top}+2
+variable	flyT equal 10000
+variable	runT equal v_flyT+10000
+variable	th equal v_runT/20
+variable	dr equal v_runT/20
+
+variable	BoxL  equal  lx
+variable	dispX  equal  random(0,${BoxL},475414)
+variable	dispY  equal  random(0,${BoxL},475414)
+
+region          bottom block INF INF INF INF INF -8 units box
+region		interface block INF INF INF INF ${top} ${inter} units box
+region		film block INF INF INF INF ${top} INF units box
+
+#-----------------------------------------------------------------------THERMO
+thermo          ${th}
+thermo_style    custom step pe press pxx pyy pzz lx ly lz vol temp 
+
+#----------------------------------------------------------GROUPS
+group           bottomLayer region bottom
+
+#---------------------------------------------------------------------DEPOSIT LOOP
+shell           mkdir  dump 
+dump		relax all custom ${dr} data/lammpstrj.deposit id type x y z
+
+variable a loop 100
+label l1
+
+group		myG  id <= 0
+read_data	myNanoP.txt add append group myG
+group		subG subtract all myG 
+
+variable	diff equal ($(lx)-v_top)
+variable	clusdia equal 2*(abs(bound(myG,xmax)-bound(myG,xmin)))
+
+if "v_diff<=v_clusdia" then "change_box all z delta 0 50 units box"
+
+variable	E equal 50*(1.6e-19)				#units: eV
+variable	mass equal (mass(myG))*(1.6605e-27)
+variable        cvel equal (-1)*(sqrt(2*${E}/${mass}))/100	#metal units: vel = 1 Angstr/ps = 100 m/s
+
+variable	filmtop equal bound(film,zmax)
+variable	dxx   equal  "v_dispX-0.5*v_BoxL" 
+variable	dyy   equal  "v_dispY-0.5*v_BoxL" 
+variable	dzz   equal  "v_filmtop+v_flyT*cvel"
+print		"${dzz}"
+
+displace_atoms myG move ${dxx} ${dyy} ${dzz} units box	#make it uniform 
+#displace_atoms myG move 0 0  50 units box		#make it uniform  
+reset_ids
+
+velocity        myG create 300 74657362 mom yes rot yes
+velocity        myG set 0 0 ${cvel} units box
+
+velocity        subG create v_clusT 74657362 mom yes rot yes
+set             group bottomLayer vz  0
+fix             freeze bottomLayer setforce NULL NULL 0.0 
+
+#compute myT 	subG temp
+#thermo_modify 	temp myT 
+
+fix            1 all nve
+fix            2 bottomLayer temp/berendsen 200.0 200.0 0.1
+run            runT
+
+print		"run finished for a value $a"
+
+#undump	relax
+#uncompute myT
+unfix	freeze 
+unfix	1
+unfix	2
+group	myG	clear
+group	subG 	clear
+variable dxx	delete
+variable dyy	delete
+variable dzz  	delete
+
+next a
+jump in.CuZr_deposit l1
+
+#----------------------------------------------------------GROUPS AND COMPUTES
+group		g1 type 1
+group		g2 type 2
+group		film region film
+group		film_g1 intersect film g1
+group		film_g2 intersect film g2
+compute		prdf11 film_g1 rdf 100
+compute		prdf22 film_g2 rdf 100
+compute		rdf film rdf 100 #cutoff 3.5
+compute		bulk_rdf bottomLayer rdf 100 #cutoff 3.5
+fix 		r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] c_bulk_rdf[*] file data/rdf_0GPa.rdf mode vector
+run		0 pre yes post no

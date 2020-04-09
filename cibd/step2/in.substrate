@@ -41,7 +41,6 @@ pair_coeff      * * ZrCu.lammps.eam Zr Cu
 
 thermo          ${th}
 thermo_style    custom step pe press pxx pyy pzz lx ly lz vol temp 
-
 timestep       0.002
 min_style     fire
 minimize   1e-10  1e-10  100  100
@@ -50,30 +49,11 @@ velocity        all create 2000 4928459 dist gaussian
 fix             1 all nvt temp 2000 2000 0.1  
 run             ${t_equil}
 write_restart	restart.equilib
+
 unfix           1
-
-variable	cnt index 0
-
-label		loop
 #dump            melt all custom v_dr dump/dump*.atom id type x y z 
 #dump            1 all cfg 10000 cfg/*.cfg id type xs ys zs   
 #dump_modify     1 element Zr Cu Al
 fix              2 all npt temp  2000 300 0.1  iso 0.0 0.0 1
 run		${t_quench}
-next		cnt
-
-python 		success input 1 v_cnt here """
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-me = comm.Get_rank()
-nprocs = comm.Get_size()
-def success(num1):
-    if me == 0:
-        f = open("data/success.log", "a+")
-        f.write("Run worked. Iter %d \n" % ((num1)))
-        f.close
-"""
-write_restart	restart.substrate
-if "v_cnt < 10" then "jump in.substrate loop"
-
 write_data	data.Substrate

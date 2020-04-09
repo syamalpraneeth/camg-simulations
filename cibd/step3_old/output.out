@@ -1,29 +1,7 @@
+/var/lib/slurmd/job04140/slurm_script: line 28: bionano[02-03]: command not found
 LAMMPS (5 Jun 2019)
-##################################################################
-##IN.CUZR_DEPOSIT	                                        ##
-##Script to deposits prequenched clusters at random locations	##
-##on substrate. Compute RDFs and voronoi after impaction	##
-##################################################################
-##Dependencies	: ../step1/*, ../step2/*                        ##
-##Influences	: lammpstrj.*, post/*, log.*, *.restart         ##
-##################################################################
-## ver. : 2019-07-24, Syamal Praneeth Chilakalapudi, INT, KIT	##
-##Author Email    :syamalpraneeth@gmail.com			##
-##################################################################
-
-shell		mkdir data
-
-#--------------------------------------------------------------------INITIALISE
-units           metal
-boundary        p p p
-atom_style      atomic
-atom_modify map array
-lattice		fcc 4
 Lattice spacing in x,y,z = 4 4 4
-timestep	0.001
-
-#here I read out a template substrate and cut out a size that I want
-read_data	data.Substrate
+Reading data file ...
   orthogonal box = (-206.362 -206.362 -10.3181) to (206.362 206.362 10.3181)
   6 by 10 by 1 MPI processor grid
   reading atoms ...
@@ -31,32 +9,11 @@ read_data	data.Substrate
   reading velocities ...
   200000 velocities
   read_data CPU = 9.53296 secs
-variable	d equal 100
-region		whole block INF INF INF INF INF INF units box side in
-region		extra block -$d $d -$d $d -10 10 units box side out
-region		extra block -100 $d -$d $d -10 10 units box side out
-region		extra block -100 100 -$d $d -10 10 units box side out
-region		extra block -100 100 -100 $d -10 10 units box side out
-region		extra block -100 100 -100 100 -10 10 units box side out
-region		erase intersect 2 whole extra
-delete_atoms	region erase
 Deleted 154536 atoms, new total = 45464
-change_box	all x final -$d $d y final -$d $d z final -12 50 units box
-change_box	all x final -100 $d y final -$d $d z final -12 50 units box
-change_box	all x final -100 100 y final -$d $d z final -12 50 units box
-change_box	all x final -100 100 y final -100 $d z final -12 50 units box
-change_box	all x final -100 100 y final -100 100 z final -12 50 units box
+Changing box ...
   orthogonal box = (-100 -206.362 -10.3181) to (100 206.362 10.3181)
   orthogonal box = (-100 -100 -10.3181) to (100 100 10.3181)
   orthogonal box = (-100 -100 -12) to (100 100 50)
-
-mass		1 91.224	#Zr
-mass		2 63.546	#Cu
-pair_style      eam/alloy
-pair_coeff      * * ZrCu.lammps.eam Zr Cu
-
-min_style	fire
-minimize	1e-10  1e-10  100  100
 WARNING: Using 'neigh_modify every 1 delay 0 check yes' setting during minimization (../min.cpp:168)
 Neighbor list info ...
   update every 1 steps, delay 0 steps, check yes
@@ -70,6 +27,9 @@ Neighbor list info ...
       pair build: half/bin/atomonly/newton
       stencil: half/bin/3d/newton
       bin: standard
+Setting up fire style minimization ...
+  Unit style    : metal
+  Current step  : 0
 Per MPI rank memory allocation (min/avg/max) = 1.937 | 1.939 | 1.942 Mbytes
 Step Temp E_pair E_mol TotEng Press 
        0            0    3108.8223            0    3108.8223    205232.92 
@@ -108,55 +68,11 @@ Total # of neighbors = 2799812
 Ave neighs/atom = 61.5831
 Neighbor list builds = 5
 Dangerous builds = 0
-
-variable        clusT equal 300
-variable	top equal bound(all,ymax)
-variable	inter equal ${top}+2
-variable	inter equal 99.9979363045404+2
-variable	T equal 10000
-variable	th equal v_T/10
-variable	dr equal v_T/10
-
-variable	BoxL  equal  lx
-variable	dispX  equal  random(0,${BoxL},475414)
-variable	dispX  equal  random(0,200,475414)
-variable	dispY  equal  random(0,${BoxL},475414)
-variable	dispY  equal  random(0,200,475414)
-
-region          bottom block INF INF INF INF INF -8 units box
-region		interface block INF INF INF INF ${top} ${inter} units box
-region		interface block INF INF INF INF 99.9979363045404 ${inter} units box
-region		interface block INF INF INF INF 99.9979363045404 101.99793630454 units box
-region		film block INF INF INF INF ${top} INF units box
-region		film block INF INF INF INF 99.9979363045404 INF units box
-
-#-----------------------------------------------------------------------THERMO
-thermo          ${th}
-thermo          1000
-thermo_style    custom step pe press pxx pyy pzz lx ly lz vol temp
-
-#----------------------------------------------------------GROUPS
-group           bottomLayer region bottom
 4562 atoms in group bottomLayer
-group		film region film
 0 atoms in group film
-
-#---------------------------------------------------------------------DEPOSIT LOOP
-dump		relax all custom ${dr} data/lammpstrj.deposit id type x y z
-dump		relax all custom 1000 data/lammpstrj.deposit id type x y z
-
-variable	filmtop equal "v_top"
-print		"top of film initial ${top}"
 top of film initial 99.9979363045404
-
-variable	Niter equal 200
-variable a loop ${Niter}
-variable a loop 200
-label l1
-
-group		myG  id <= 0
 0 atoms in group myG
-read_data	myNanoP.txt add append group myG
+Reading data file ...
   orthogonal box = (-100 -100 -12) to (100 100 50)
   5 by 6 by 2 MPI processor grid
   reading atoms ...
@@ -164,79 +80,25 @@ read_data	myNanoP.txt add append group myG
   reading velocities ...
   884 velocities
   read_data CPU = 0.0539548 secs
-#read_data	NanoP.relaxed add append group myG
-group		subG subtract all myG
 45464 atoms in group subG
-
-variable	diff equal ($(lx)-v_top)
-variable	diff equal (200-v_top)
-variable	clusdiaeval equal abs(bound(myG,xmax)-bound(myG,xmin))
-variable	clusdia equal ${clusdiaeval}
-variable	clusdia equal 29.4423626389
-print		"approx clus diameter v_clusdia angstrom"
 approx clus diameter v_clusdia angstrom
-
-if "${diff}<=${clusdia}" then "change_box all z delta 0 v_clusdia units box"
-
-variable	E equal 50*(1.6e-19)				#units: eV
-variable	mass equal (mass(myG))*(1.6605e-27)
-variable        cvel equal (-1)*(sqrt(2*${E}/${mass}))/100	#metal units: vel = 1 Angstr/ps = 100 m/s = 0.0001 Angstr/tstep
-variable        cvel equal (-1)*(sqrt(2*8e-18/${mass}))/100	
-variable        cvel equal (-1)*(sqrt(2*8e-18/1.0826230851e-22))/100	
-
-print		"velocity ${cvel}"
 velocity -3.84433609775096
-
-variable	dxx   equal  "v_dispX-0.5*v_BoxL"
-variable	dyy   equal  "v_dispY-0.5*v_BoxL"
-variable	dzz   equal  "v_filmtop+2*(v_clusdia)"
-#variable	dzz   equal  "v_filmtop+((v_flyT*abs(v_cvel)*(0.001))"
-print		"deposit height ${dzz}"
 deposit height 158.88266158234
-
-variable	flyT equal "(v_clusdia)/(abs(v_cvel)*(0.001))"
-variable	runT equal "floor(v_flyT+100)" #0 #0
-print		"runtime ${runT}"
 runtime 7758
-
-variable	up equal "2*(v_clusdia)"
-change_box	all z delta 0 ${up} units box
-change_box	all z delta 0 58.8847252778 units box
+Changing box ...
   orthogonal box = (-100 -100 -12) to (100 100 108.885)
-displace_atoms myG move ${dxx} ${dyy} v_clusdia units box	#make it uniform
-displace_atoms myG move -92.4426674842834 ${dyy} v_clusdia units box	
-displace_atoms myG move -92.4426674842834 21.391451358795 v_clusdia units box	
-#displace_atoms myG move 0 0 50 units box		#make it uniform
-reset_ids
+Displacing atoms ...
 Resetting atom IDs ...
-
-velocity        myG create 300 74657362 mom yes rot yes
-velocity        myG set 0 0 ${cvel} units box
-velocity        myG set 0 0 -3.84433609775096 units box
-
-velocity        subG create ${clusT} 74657362 mom yes rot yes
-velocity        subG create 300 74657362 mom yes rot yes
-set             group bottomLayer vz  0
+Setting atom values ...
   4562 settings made for vz
-fix             freeze bottomLayer setforce NULL NULL 0.0
-
-#compute myT 	subG temp
-#thermo_modify 	temp myT
-
-fix            1 all nve
-fix            2 bottomLayer temp/berendsen 200.0 200.0 0.1
-
-print		"${clusdia}"
 29.4423626389
-print		"${cvel}"
 -3.84433609775096
-print		"${flyT}"
 7658.63386817936
-print           "${runT}"
 7758
-
-run            ${runT}
-run            7758
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 100
+  Time step     : 0.001
 Per MPI rank memory allocation (min/avg/max) = 1.981 | 2.064 | 4.315 Mbytes
 Step PotEng Press Pxx Pyy Pzz Lx Ly Lz Volume Temp 
      100   -222092.89   -2976.3294   -3713.5056   -3561.7827   -1653.6999          200          200    120.88473      4835389     292.9307 
@@ -274,29 +136,10 @@ Total # of neighbors = 2871012
 Ave neighs/atom = 61.9447
 Neighbor list builds = 153
 Dangerous builds = 0
-variable	filmtop equal bound(film,zmax)
-write_restart	data/restart.deposit
-print		"Successful run iteration $a of ${Niter}" append data/success.log screen yes
+System init for write_restart ...
 Successful run iteration 1 of 200
-
-#undump	relax
-#uncompute myT
-unfix	freeze
-unfix	1
-unfix	2
-group	myG	clear
-group	subG 	clear
-variable dxx	delete
-variable dyy	delete
-variable dzz  	delete
-
-#if		"$a > ${Niter}" then "jump in.CuZr_deposit break"
-next a
-jump in.CuZr_deposit l1
-
-group		myG  id <= 0
 0 atoms in group myG
-read_data	myNanoP.txt add append group myG
+Reading data file ...
   orthogonal box = (-100 -100 -12) to (100 100 108.885)
   4 by 5 by 3 MPI processor grid
   reading atoms ...
@@ -304,79 +147,25 @@ read_data	myNanoP.txt add append group myG
   reading velocities ...
   884 velocities
   read_data CPU = 0.0538919 secs
-#read_data	NanoP.relaxed add append group myG
-group		subG subtract all myG
 46348 atoms in group subG
-
-variable	diff equal ($(lx)-v_top)
-variable	diff equal (200-v_top)
-variable	clusdiaeval equal abs(bound(myG,xmax)-bound(myG,xmin))
-variable	clusdia equal ${clusdiaeval}
-variable	clusdia equal 29.4423626389
-print		"approx clus diameter v_clusdia angstrom"
 approx clus diameter v_clusdia angstrom
-
-if "${diff}<=${clusdia}" then "change_box all z delta 0 v_clusdia units box"
-
-variable	E equal 50*(1.6e-19)				#units: eV
-variable	mass equal (mass(myG))*(1.6605e-27)
-variable        cvel equal (-1)*(sqrt(2*${E}/${mass}))/100	#metal units: vel = 1 Angstr/ps = 100 m/s = 0.0001 Angstr/tstep
-variable        cvel equal (-1)*(sqrt(2*8e-18/${mass}))/100	
-variable        cvel equal (-1)*(sqrt(2*8e-18/1.0826230851e-22))/100	
-
-print		"velocity ${cvel}"
 velocity -3.84433609775096
-
-variable	dxx   equal  "v_dispX-0.5*v_BoxL"
-variable	dyy   equal  "v_dispY-0.5*v_BoxL"
-variable	dzz   equal  "v_filmtop+2*(v_clusdia)"
-#variable	dzz   equal  "v_filmtop+((v_flyT*abs(v_cvel)*(0.001))"
-print		"deposit height ${dzz}"
 deposit height -1e+20
-
-variable	flyT equal "(v_clusdia)/(abs(v_cvel)*(0.001))"
-variable	runT equal "floor(v_flyT+100)" #0 #0
-print		"runtime ${runT}"
 runtime 7758
-
-variable	up equal "2*(v_clusdia)"
-change_box	all z delta 0 ${up} units box
-change_box	all z delta 0 58.8847252778 units box
+Changing box ...
   orthogonal box = (-100 -100 -12) to (100 100 167.769)
-displace_atoms myG move ${dxx} ${dyy} v_clusdia units box	#make it uniform
-displace_atoms myG move -4.2498588562012 ${dyy} v_clusdia units box	
-displace_atoms myG move -4.2498588562012 57.444250583649 v_clusdia units box	
-#displace_atoms myG move 0 0 50 units box		#make it uniform
-reset_ids
+Displacing atoms ...
 Resetting atom IDs ...
-
-velocity        myG create 300 74657362 mom yes rot yes
-velocity        myG set 0 0 ${cvel} units box
-velocity        myG set 0 0 -3.84433609775096 units box
-
-velocity        subG create ${clusT} 74657362 mom yes rot yes
-velocity        subG create 300 74657362 mom yes rot yes
-set             group bottomLayer vz  0
+Setting atom values ...
   4562 settings made for vz
-fix             freeze bottomLayer setforce NULL NULL 0.0
-
-#compute myT 	subG temp
-#thermo_modify 	temp myT
-
-fix            1 all nve
-fix            2 bottomLayer temp/berendsen 200.0 200.0 0.1
-
-print		"${clusdia}"
 29.4423626389
-print		"${cvel}"
 -3.84433609775096
-print		"${flyT}"
 7658.63386817936
-print           "${runT}"
 7758
-
-run            ${runT}
-run            7758
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 7858
+  Time step     : 0.001
 Per MPI rank memory allocation (min/avg/max) = 2.199 | 3.507 | 5.73 Mbytes
 Step PotEng Press Pxx Pyy Pzz Lx Ly Lz Volume Temp 
     7858   -225319.04   -1048.7785      -1520.1   -1500.9577   -125.27802          200          200    179.76945      7190778    292.91714 
@@ -415,3 +204,25 @@ Total # of neighbors = 2932084
 Ave neighs/atom = 62.0783
 Neighbor list builds = 154
 Dangerous builds = 0
+System init for write_restart ...
+Successful run iteration 2 of 200
+0 atoms in group myG
+Reading data file ...
+  orthogonal box = (-100 -100 -12) to (100 100 167.769)
+  4 by 5 by 3 MPI processor grid
+  reading atoms ...
+  884 atoms
+  reading velocities ...
+
+=====================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   EXIT CODE: 11
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+=====================================================================================
+[proxy:0:0@bionano02.int-nano.int.kit.edu] main (./pm/pmiserv/pmip.c:292): assert (!closed) failed
+srun: error: bionano02: task 0: Exited with exit code 7
+[mpiexec@bionano02.int-nano.int.kit.edu] HYDT_bscu_wait_for_completion (./tools/bootstrap/utils/bscu_wait.c:70): one of the processes terminated badly; aborting
+[mpiexec@bionano02.int-nano.int.kit.edu] HYDT_bsci_wait_for_completion (./tools/bootstrap/src/bsci_wait.c:23): launcher returned error waiting for completion
+[mpiexec@bionano02.int-nano.int.kit.edu] HYD_pmci_wait_for_completion (./pm/pmiserv/pmiserv_pmci.c:191): launcher returned error waiting for completion
+[mpiexec@bionano02.int-nano.int.kit.edu] main (./ui/mpich/mpiexec.c:405): process manager error waiting for completion
