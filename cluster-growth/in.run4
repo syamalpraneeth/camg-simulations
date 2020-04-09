@@ -1,0 +1,43 @@
+	set		group keep image 0 0 0
+	group		dep clear
+	unfix		f1
+
+	if 		"$a > 1" then "jump in.run4 skip"
+	fix		f6 keep ave/time 1 1 1 c_c3[*] mode scalar
+	variable        xm equal -(f_f6[1])
+        variable        ym equal -(f_f6[2])
+        variable        zm equal -(f_f6[3])
+
+#run2.3
+	run		0 start $(step) stop ${tn} post no
+	print		"Recentre COM: ${xm} ${ym} ${zm}"
+	displace_atoms  keep move ${xm} ${ym} ${zm} units box
+	unfix		f6
+
+label		skip
+
+	fix		f7 keep ave/time 1 1 1 c_c4 mode scalar
+	variable	rad equal f_f7
+
+	group           todel subtract all keep
+	delete_atoms    group todel
+
+#run2.4
+	run		0 #test if this is different from the next line
+#	run		0 start $(step) stop ${tn} pre yes post no
+	print		'works after run 2.4'
+	variable        r equal ${rad}
+	variable        R equal ${rad}*2*exp(-${a}/1000)
+	variable	kc equal count(keep)
+
+#	if "${ckeep} > 10000" then "jump in.run4 break"
+	variable	bx equal lx/2
+	if		"${bx} < $R" then &
+	"change_box      all x final -$R $R  y final -$R $R z final -$R $R"
+
+	unfix		f4
+#	if "$a > 1" then "unfix f5"	#moved to end of in.run4, after run 2.2
+
+	group		todel delete
+
+label		break
