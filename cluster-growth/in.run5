@@ -1,0 +1,30 @@
+#info		fixes groups out screen
+
+unfix           ff2
+fix		fall all nvt temp 100 100 0.1
+
+run		${t2}
+
+#set		type 1 mass 63.546
+#set		type 2 mass 91.224
+#write_dump	all custom data/molfil.txt id type x y z c_c5
+fix		f8 all ave/atom 1 1 1 x y z c_c5
+run		0 pre yes post no
+
+#variable	o atom f_f8
+#print		'$o'
+
+write_dump     all custom molfil.txt id type mass x y z c_c5 f_f8[*]
+#Files that depend upon this dump: post.py, concentration2.py, molefile2.py, molefile.py
+
+variable	RR equal bound(keep,xmax)
+variable	MSS equal ((mass(g1)*count(g1))+(mass(g2)*count(g2))) #/(6.022e+23)
+variable	size equal count(all)
+variable	time equal cpu/3600
+
+print		'mass of cluster is ${MSS} amu'
+print		'size of cluster is ${size}'
+print		'another radius compute ${RR} Angstroms'
+print		'final radius is $r Angstroms'
+print		'total timestep value is $(step)'
+print		'CPU time is ${time} hours'

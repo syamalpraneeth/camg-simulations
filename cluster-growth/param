@@ -1,0 +1,12 @@
+Ni-Nb_1.eam.fs	#pair_coeff
+Ni		#element1
+Nb		#element2
+60		#composition x
+40		#composition y
+180		#create_atoms	1 
+120		#create_atoms	2
+100		#n1
+25		#n2
+10000		#size
+2000000		#equilibriation duration
+19500000	#run duration
