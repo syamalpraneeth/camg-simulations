@@ -1,0 +1,37 @@
+# Lines starting with #SBATCH are commands for SLURM on FORHLR
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --time=0:00:00
+#SBATCH --job-name=clus_10000-cuzr
+#SBATCH --output=output.out
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+#SBATCH --error=output.out
+#SBATCH --partition=long
+
+cd ${SLURM_SUBMIT_DIR } #Changes into the directory from where you submitted:
+cat ${SLURM_JOB_NODELIST} #Prints all the nodes you requested
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+
+#read job ID number and move files to it
+#jID=${PBS_JOBID}
+#suffix=".int-bionano.int.kit.edu"
+#jID=${jID%"$suffix"}
+#echo=${jID}
+#s="/"
+#mkdir -p ${jID}
+#cp in.run* wrap.py clus_analysis.py ${jID}
+#cd ${PBS_O_WORKDIR}${s}${jID}
+##PBS -d ${jID}${s} 				#to change work directory; this did not work
+#wait
+
+#RUN SCRIPT HERE
+#mpirun -np 8 ~/local/lammps/src/lmp_mpi -in in.run # to start with 8 mpi threads-suggested by Timo Strunk
+
+#moving the files, part 2
+#cp *.lammpstrj log.lammps output.out ${jID}
+#wait
+#rm -rf *.lammpstrj log.lammps output.out
