@@ -1,30 +1,42 @@
+# !/usr/bin/env python2.7
+
+##################################################################
+##MOLEFILE.PY							##
+##Generate molecule file from 					##
+##Dependencies	:						##
+##Influences	:						##
+##################################################################
+## ver. : 2019-06-24, Syamal Praneeth Chilakalapudi, KIT, INT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
 import numpy as np
 import pipes
 import os
 import time
 
 
-def molfil(lmp, comm, rnk, num, a, b, x, y):
+def molfil(lmp, comm, rnk, num, a, b, xc, yc):
     n = lmp.get_natoms()
-    matrix = np.zeros((1, 7))
+    matrix = np.zeros((1, 6))
     for i in range(0, num):
         if i == rnk:  # collect data from each proc
             m = lmp.extract_global("nlocal", 0)
-            arr1 = np.zeros((m, 7))
+            arr1 = np.zeros((m, 6))
             mss1 = np.zeros((m, 1))
             cvec = lmp.extract_fix("f8", 1, 2, 0, 0)
             ids1 = lmp.extract_atom("id", 0)
             mss1 = lmp.extract_atom("mass", 0)
             typ1 = lmp.extract_atom("type", 0)
             ind = 0
+
             for x in cvec:
-                # '4' is the number of values/columns in fix f8. dependant on in.run6, and later in.run5 maybe
-                for y in range(3, 7):
+                # '3' is the number of values/columns in fix f8. dependant on in.cluster
+                for y in range(3, 6):
                     arr1[ind, y] = x[y-3]  # python array indexes from 0
                 arr1[ind, 0] = ids1[ind]
                 arr1[ind, 1] = typ1[ind]
                 arr1[ind, 2] = mss1[ind]
-#	        		print(arr1[ind,2])
                 ind = ind+1
                 if ind == m:
                     break
@@ -42,7 +54,8 @@ def molfil(lmp, comm, rnk, num, a, b, x, y):
         matrix = comm.recv(source=(rnk-1) % num)
 #		mass = np.sum(matrix[:,2], axis=0)
 # write collected data to file to generate a cluster molecule template for later
-        name = 'data/clusmol_'+str(a)+str(x)+str(b)+str(y)+'_'+str(n)+'.txt'
+        name = 'data/clusmol_'+str(a)+str(xc)+str(b)+str(yc)+'_'+str(n)+'.txt'
+        print(name)
         t2 = open(name, 'w')
         t2.write('LAMMPS molecule file \n \n')
         t2.write(str(n) + " atoms \n \n")

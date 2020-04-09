@@ -1,0 +1,28 @@
+# Lines starting with #PBS are commands for Torque
+
+#PBS -l nodes=3:ppn=10,walltime=150:00:00
+#PBS -N cuzr_50_50_6nm_clus
+#PBS -o output.out
+#PBS -M syamal.chilakalapudi@kit.edu
+#PBS -m ae
+#PBS -j oe
+
+cd ${PBS_O_WORKDIR} #Changes into the directory from where you submitted:
+cat ${PBS_NODEFILE} #Prints all the nodes you requested
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+
+lpath="~/local/lammps-22Aug18/src/"
+par=($(awk '{print $1}' param))
+
+cp ../../../dev/clusters/bulk-derived/in.* .
+cp ../../../dev/clusters/bulk-derived/*.py .
+cp -r ../../../dev/clusters/bulk-derived/post .
+mkdir data
+
+chmod u+x *.py
+
+#RUN SCRIPT HERE
+#mpirun -np 30 ~/local/lammps-22Aug18/src/lmp_mpi -in in.cluster -var args "${par[@]}"
+mpirun -n 30 ./wrap.py "${par[@]}"
+exit $?
