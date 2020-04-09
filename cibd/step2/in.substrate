@@ -1,0 +1,79 @@
+# Input file for Cu cascade simulation
+
+
+variable	latparam equal 4             #Lattice constant at 300K
+variable	highT equal  2000
+variable	coolT equal 300
+variable	boxL equal 200
+variable	quenchrt equal 10e-3 #10e-5		#10^10K/s= 10^-5K/timestep
+variable	t_equil equal 20000 #00
+variable	t_quench equal (${highT}-${coolT})/(${quenchrt})
+
+variable	e1 equal 50
+variable	e2 equal 50
+variable	Xfraction equal (v_e1)/((v_e1)+(v_e2))
+
+variable	Xtype equal 1	#1 =Zr, Cu =2
+variable	th equal ${t_equil}/10
+variable	dr equal ${t_equil}/5
+
+# ------------------------ INITIALIZATION ----------------------------
+echo both
+units 		metal
+dimension	3
+boundary	p p p
+atom_style	atomic
+atom_modify map array
+
+# ----------------------- ATOM DEFINITION ----------------------------
+lattice		fcc ${latparam}
+region		whole block -${boxL} ${boxL} -${boxL} ${boxL} -10 10 units box 
+create_box	2 whole
+create_atoms	2 region whole                #create all Cu
+set		group all type/fraction ${Xtype} ${Xfraction} 8374625 
+ 
+group		Zr type 1
+group		Cu type 2
+
+# ------------------------ FORCE FIELDS ------------------------------
+pair_style      eam/alloy
+pair_coeff      * * ZrCu.lammps.eam Zr Cu
+
+thermo          ${th}
+thermo_style    custom step pe press pxx pyy pzz lx ly lz vol temp 
+
+timestep       0.002
+min_style     fire
+minimize   1e-10  1e-10  100  100
+
+velocity        all create 2000 4928459 dist gaussian
+fix             1 all nvt temp 2000 2000 0.1  
+run             ${t_equil}
+write_restart	restart.equilib
+unfix           1
+
+variable	cnt index 0
+
+label		loop
+#dump            melt all custom v_dr dump/dump*.atom id type x y z 
+#dump            1 all cfg 10000 cfg/*.cfg id type xs ys zs   
+#dump_modify     1 element Zr Cu Al
+fix              2 all npt temp  2000 300 0.1  iso 0.0 0.0 1
+run		${t_quench}
+next		cnt
+
+python 		success input 1 v_cnt here """
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+me = comm.Get_rank()
+nprocs = comm.Get_size()
+def success(num1):
+    if me == 0:
+        f = open("data/success.log", "a+")
+        f.write("Run worked. Iter %d \n" % ((num1)))
+        f.close
+"""
+write_restart	restart.substrate
+if "v_cnt < 10" then "jump in.substrate loop"
+
+write_data	data.Substrate

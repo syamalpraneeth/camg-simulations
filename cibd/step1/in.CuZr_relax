@@ -1,0 +1,47 @@
+#cuzr quench
+
+units           metal
+boundary        p p p
+atom_style      atomic
+variable        highT equal 2000
+variable	coolT equal 300
+variable	quenchrt equal 10e-3 #10e-5					#10^10K/s= 10^-5K/timestep
+variable	t_equil equal 200000 #0
+variable	t_quench equal (${highT}-${coolT})/(${quenchrt})
+read_data	NanoParticle
+
+pair_style      eam/alloy
+pair_coeff      * * ZrCu.lammps.eam Zr Cu
+
+reset_ids
+compute		c5 all pe/atom
+
+thermo          1000
+thermo_style    custom step pe press pxx pyy pzz lx ly lz vol temp
+
+minimize	1e-8 1e-8 1000 1000
+reset_timestep	0
+timestep	0.001
+
+
+velocity	all create ${highT} 74657362 mom yes rot yes
+fix		1 all nvt temp ${highT} ${highT} 0.1                            #Heat to 2000K
+
+dump		relax all custom 10000 data/dump.atom id type x y z 
+run		${t_equil}
+
+unfix		1
+fix		2 all nvt temp ${highT} ${highT} 0.1				#Quench to 300K
+run		${t_quench}
+
+unfix		2
+fix		3 all nvt temp ${coolT} ${coolT} 0.1                            #Relax to 300K
+fix		f8 all ave/atom 1 1 1 x y z c_c5
+#variable	ad equal c_c5[1]
+run		${t_equil}
+
+#print		'compute activate ${ad}'
+info		fixes computes out screen
+
+write_data	NanoP.relaxed
+write_dump	all custom molfil.txt id type mass x y z f_f8[*]
