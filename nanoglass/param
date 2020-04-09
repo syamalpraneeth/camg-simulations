@@ -1,0 +1,8 @@
+Ni-Nb_1.eam.fs	#pair_coeff	* * Ni-Nb_1.eam.fs Ni Nb
+Ni		#element1
+Nb		#element2
+60		#composition x
+40		#composition y
+6		#diameter of cluster in nm
+2000000		#equilibriation duration
+19500000	#run duration
