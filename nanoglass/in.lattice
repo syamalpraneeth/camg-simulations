@@ -7,7 +7,7 @@
 ##Dependencies	: clus_mol*, job.script                         ##
 ##Influences	: lammpstrj.*, post/*, log.*, *.restart         ##
 ##################################################################
-## ver. : 2019-05-28, Syamal Praneeth Chilakalapudi, INT, KIT	##
+## ver. : 2019-05-28, Syamal Praneeth Chilakalapudi, KIT, INT	##
 ##Author Email    :syamalpraneeth@gmail.com			##
 ##################################################################
 
@@ -24,7 +24,7 @@ variable	y equal ${args}
 next		args
 variable	siz equal ${args}
 next		args
-variable	R equal (${args})*(10)/2	#argument passed is diameter
+variable	R equal (${args})*5 #argument passed is diameter
 next		args
 variable	eq equal ${args}
 variable	inter equal (${eq})/10
@@ -41,10 +41,9 @@ variable	ht equal 3000
 #variable	ht equal (${T2}-${T1})*((10^3)/(0.05)) #0.5K/ps ramp rate
 variable	ht_inter equal (${ht}/10)
 variable	molfil string clusmol_${e1}${x}${e2}${y}_${siz}.txt
-#variable	clusfile string data.cluster_${siz}
 
-variable        th equal floor(${ht}/20)
-variable	dr equal floor(${ht}/15)
+variable        th equal floor(${ht}/50)
+variable	dr equal floor(${ht}/100)
 
 #--------------------------------------------------------------------INITIALISE
 units		metal
