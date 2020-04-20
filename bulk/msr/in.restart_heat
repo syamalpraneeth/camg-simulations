@@ -1,0 +1,85 @@
+##################################################################
+##IN.RESTART	                                                ##
+##Made a typo in restart file and gave wrong timestep# for	##
+##cooling part in in.glass while running on FORHLR.		##
+##This restart is a patch for the boo boo.			##
+##Computes RDFs and voronoi during glasses formation at 6GPa and##
+##heating to 500 K.                         			##
+##################################################################
+##Dependencies	: job.restart, restart.equilib3_5.5nm           ##
+##Influences	: lammpstrj.*, post/*, log.*, *.restart         ##
+##################################################################
+## ver. : 2019-10-14, Syamal Praneeth Chilakalapudi, KIT, INT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#---------------------------------------------------------------------VARIABLES
+
+variable	pot string ${args}
+next		args
+variable	e1 string ${args}
+next		args
+variable	e2 string ${args}
+next		args
+variable	x equal ${args}
+next		args
+variable	y equal ${args}
+next		args
+variable	frac equal $y/($x+$y)
+variable	siz equal ${args}
+variable	s equal (${args}+2)
+next		args
+variable	T1 equal ${args}
+
+variable	th equal ${T1}/10
+variable	dr equal ${T1}/10
+
+variable	T_hot equal 500
+variable	T_cool equal 50
+
+#variable	ht equal 3000 
+#variable	tquench equal 3000
+variable	ht equal (${T_hot}-${T_cool})*((10^3)/(0.05)) #0.5K/ps ramp rate
+variable	tquench equal (2000-${T_cool})*((10^3)/(0.01)) #0.1K/ps quench rate at 1 atm pressure
+variable	quench_inter equal ${tquench}/10
+
+#--------------------------------------------------------------------INITIALISE
+units		metal
+dimension	3
+atom_style	atomic
+boundary	p p p
+lattice		sc 3.6
+
+#region		my_region_box block -$s $s -$s $s -$s $s side in
+#create_box	4 my_region_box
+
+read_restart    data/restart.equilib3_${siz}nm
+
+neigh_modify	every 20 delay 0 check yes
+pair_style	eam/fs
+pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}
+
+#-----------------------------------------------------------------------THERMO
+thermo_style	custom step pe ke press temp vol enthalpy density etotal
+thermo_modify	format float "% .6e"
+thermo		${th}
+timestep	0.001
+
+#----------------------------------------------------------GROUPS AND COMPUTES
+group           g1 type 1
+group           g2 type 2
+compute         prdf11 g1 rdf 100
+compute         prdf22 g2 rdf 100
+compute         rdf all rdf 100 #cutoff 3.5
+compute         vor all voronoi/atom
+
+#------------------------------------------------------------------------DUMPS
+#dump            d1 all custom ${dr} data/msr_whole_${siz}.lammpstrj id type x y z vx vy vz
+#dump_modify	d1 append yes
+info		computes out screen
+
+fix             r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_${T_hot}K_${siz}nm_new.rdf mode vector
+fix             v1 all ave/atom 1 1 1 c_vor[*]
+run             0  pre yes post no
+write_dump      all xyz data/sys_${T_hot}K_${siz}nm_new.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+write_dump	all custom data/dump.voronoi_${T_hot}K_${siz}nm_new id type x y z c_vor[*]

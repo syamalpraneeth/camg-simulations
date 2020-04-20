@@ -1,0 +1,63 @@
+#!/bin/sh
+
+##################################################################
+##JOB.ARR.SCRIPT                                                ##
+##Submit an array of jobs to make clusters of varying dia       ##
+##Dependencies  : ~/Documents/dev/clusters/bulk-derived         ##
+##Influences    :                                               ##
+##################################################################
+## ver. : 2019-09-04, Syamal Praneeth Chilakalapudi, KIT, INT   ##
+##Author Email    :syamalpraneeth@gmail.com                     ##
+##################################################################
+
+#SBATCH --nodes=6
+#SBATCH --cpus-per-task=20
+#SBATCH --time=1-00:00:00
+
+#SBATCH --array=6
+
+#SBATCH --job-name=nanoglass_ninb_restart_cool
+#SBATCH --output=nanoglass_%anm_restart_cool.out
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+#SBATCH --partition=normal
+
+#CHANGE WORKING DIRECTORY
+cd ${SLURM_SUBMIT_DIR}
+
+#COPY FILES FROM SOURCE
+cp ~/Documents/dev/nanoglass/in.glass .
+cp -r ~/Documents/dev/nanoglass/post .
+[[ -d "data" ]] || mkdir data			#make data dir if it doesn't exist
+
+#SUBMIT VARIABLES
+#par=($(awk '{print $1}' param))
+var=$SLURM_ARRAY_TASK_ID
+par[0]=Ni-Nb_1.eam.fs   #pair_coeff
+par[1]=Ni              #element1
+par[2]=Nb              #element2
+par[3]=60              #composition x
+par[4]=40              #composition y
+par[5]=${var}          #diameter of cluster (nm)
+par[6]=2000000       #equilibriation duration
+par[7]=19500000      #quench duration
+name="clus_${par[1]}${par[3]}${par[2]}${par[4]}"
+
+#SET LAMMPS DIRECTORY AND INITIAL OUTPUTS
+
+LMP_DIR=/pfs/work6/workspace/scratch/mj0054-cibd-0/lammps/src/lmp_mpi
+echo $SLURM_JOB_NODELIST #Prints all the nodes you requested
+echo $LMP_DIR
+echo $SLURM_CPUS_PER_TASK
+
+#RUN SETTINGS
+module purge
+module load compiler/intel/18.0
+module load mpi/impi/2018
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+mpirun -np $SLURM_CPUS_PER_TASK $LMP_DIR -i in.restart_cool -v args "${par[@]}" -l log.nanoglass_${var}nm_restart_cool
+
+exit $?
+

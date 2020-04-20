@@ -1,0 +1,204 @@
+##################################################################
+##IN.COMPACT	                                                ##
+##Script to make a bcc lattice with CuZr clusters as lattice	##
+##points. Compute RDFs and voronoi during compaction into nano- ##
+##glasses at 6GPa and heating to 500 K.                         ##
+##################################################################
+##Dependencies	: clus_mol*, job.script                         ##
+##Influences	: *.lammpstrj, post/*, log.*, *.restart         ##
+##################################################################
+## ver. : 2019-05-28, Syamal Praneeth Chilakalapudi, INT, KIT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#---------------------------------------------------------------------VARIABLES
+variable	pot string ${args}
+next		args
+variable	e1 string ${args}
+next		args
+variable	e2 string ${args}
+next		args
+variable	x equal ${args}
+next		args
+variable	y equal ${args}
+next		args
+variable	siz equal ${args}
+variable	R equal (${args})*(10)/2
+next		args
+variable	eq equal ${args}
+variable	inter equal (${eq})/10
+
+#variable	a equal (4*$R)/sqrt(3)
+#variable	S equal (2+(sqrt(2)))/(sqrt(3)) #box fits all full 8 atoms from unit cell
+variable	s equal (1/2)*(4*$R)/sqrt(3)
+variable        d equal 2*($R)/sqrt(3)
+
+variable	T_hot equal 500
+variable	T_cool equal 50
+
+#variable	ht equal 3000 
+variable	ht equal (${T_hot}-${T_cool})*((10^3)/(0.05)) #0.5K/ps ramp rate
+print		${ht}
+variable	ht_inter equal (${ht}/10)
+#variable	molfil string clusmol_${e1}${x}${e2}${y}_${siz}.txt
+variable	clusfile string data.clus_${siz}nm
+
+variable        th equal floor(${ht}/50)
+variable	dr equal floor(${ht}/10)
+
+#--------------------------------------------------------------------INITIALISE
+units		metal
+dimension	3
+atom_style	atomic
+boundary	p p p
+#lattice		bcc $a origin 0.5 0.5 0.5		#Add clusters at body centred cubic lattice points
+
+#region		box block -$S $S -$S $S -$S $S side in
+region		box block -$s $s -$s $s -$s $s side in units box
+create_box	4 box
+
+pair_style	eam/fs
+pair_coeff	* * ${pot} ${e1} ${e2} ${e1} ${e2}
+
+read_data	${clusfile} add append group center
+#variable	d equal sqrt(3)*($(xhi)-$(xlo))/2
+#variable	d equal v_shift
+variable	S equal $(xhi)
+print		'$d'
+
+read_data	${clusfile} add append group edge #shift $d $d $d
+displace_atoms	edge move $d $d $d units box
+displace_atoms	center rotate 0 0 0 1 0 0 90		#randomizing cluster orientations
+displace_atoms	center rotate 0 0 0 0 1 0 90	
+
+#molecule	m1 ${clusfile}
+#create_atoms	0 box mol m1 2343
+
+#region		sbox block -$s $s -$s $s -$s $s side out
+#region		delete intersect 2 box sbox
+#delete_atoms	region delete
+#change_box	all x final -$S $S y final -$S $S z final -$S $S boundary p p p
+#change_box	all x final -0.5 0.5 y final -0.5 0.5 z final -0.5 0.5 boundary p p p remap units lattice
+
+#-----------------------------------------------------------------------THERMO
+thermo_style	custom step etotal pe ke press temp vol enthalpy density
+thermo_modify	format float "% .6e"
+thermo		${th}
+timestep	0.001
+velocity	all create ${T_cool} 492851 mom yes rot yes dist gaussian
+
+#---------------------------------------------------------------------MINIMIZE
+minimize        1.0e-4 1.0e-6 1000 1000
+neigh_modify	every 20 delay 0 check yes
+
+#----------------------------------------------------------GROUPS AND COMPUTES
+group		g1 type 1
+group		g2 type 2
+compute		prdf11 g1 rdf 100
+compute		prdf22 g2 rdf 100
+compute		rdf all rdf 100 #cutoff 3.5
+compute		vor all voronoi/atom
+
+#------------------------------------------------------------------------DUMPS
+dump            d1 all custom ${dr} data/compaction_${siz}nm.lammpstrj id type x y z vx vy vz
+
+#----------------------------------------------------------------------INITIATE
+fix             f1 all npt temp ${T_cool} ${T_cool} 0.1 iso 1.01325 1.01325 0.1
+#write_dump	all custom data/test2.txt id type x y z
+
+variable	end equal ($(step)+${eq})
+label		lab1
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.initiate_${siz}nm
+write_restart	data/restart.initiate_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab1"
+
+#------------------------------------------------------------------EQUILIBRIATE
+#Equilib at 0 atmosphere = 1.01325*0 bars
+unfix           f1
+fix             f2 all npt temp ${T_cool} ${T_cool} 0.1 iso 0 0 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab2
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.equilib1_${siz}nm
+write_restart	data/restart.equilib1_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab2"
+
+#Relaxation time is in the order of 10^-14s = 10fs = 1000 timesteps
+fix 		r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_0GPa_${siz}nm.rdf mode vector
+fix		v1 all ave/atom 1 1 1 c_vor[*]
+run		0 pre yes post no
+write_dump      all xyz data/sys_0GPa_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+write_dump      all custom data/dump.voronoi_0GPa_${siz}nm id type x y z c_vor[*]
+
+#----------------------------------------------------------------------COMPRESS
+#Compress to 6 GPa = 60000 bar
+unfix		f2
+unfix           r1
+unfix           v1
+fix		f3 all npt temp ${T_cool} ${T_cool} 0.1 iso 0 60000 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab3
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.compress_${siz}nm
+write_restart	data/restart.compress_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab3"
+
+#------------------------------------------------------------------EQUILIBRIATE
+#Equilib at 6 GPa = 60000 bar
+unfix		f3
+fix             f4 all npt temp ${T_cool} ${T_cool} 0.1 iso 60000 60000 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab4
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.equilib2_${siz}nm
+write_restart	data/restart.equilib2_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab4"
+
+#quit
+unfix		f4
+fix             r2 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_6GPa_${siz}nm.rdf mode vector
+fix             v2 all ave/atom 1 1 1 c_vor[*]
+run             0  pre yes post no
+write_dump      all xyz data/sys_6GPa_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+write_dump      all custom data/dump.voronoi_6GPa_${siz}nm id type x y z c_vor[*]
+
+#-----------------------------------------------------------------------HEATING
+unfix           v2
+unfix           r2
+fix		f5 all nvt temp ${T_cool} ${T_hot} 0.1
+
+print		'works'
+info		system
+
+variable	end equal ($(step)+${ht})
+label		lab5
+run		${ht_inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.heat_${siz}nm
+write_restart	data/restart.heat_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab5"
+#run		${ht}
+
+#quit
+
+#------------------------------------------------------------------EQUILIBRIATE
+#Equilib at 500 K
+unfix           f5
+fix             f6 all nvt temp ${T_hot} ${T_hot} 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab6
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.equilib3_${siz}nm
+write_restart	data/restart.equilib3_${siz}nm
+if 		"$(step)<${end}" then "jump in.compact lab6"
+
+fix             r3 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_500K_${siz}nm.rdf mode vector
+fix             v3 all ave/atom 1 1 1 c_vor[*]
+unfix		f6
+run             0  pre yes post no
+write_dump      all xyz data/sys_500K_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+write_dump	all custom data/dump.voronoi_500K_${siz}nm id type x y z c_vor[*]

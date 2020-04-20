@@ -18,13 +18,16 @@ import math
 a1 = np.loadtxt("tmp.voronoi_0GPa")
 r1 = range(0,int(max(a1)+5))
 a2 = np.loadtxt("tmp.voronoi_500K")
-r2 = range(0,int(max(a3)+5))
-r = max(r1,r2)
+r2 = range(0,int(max(a2)+5))
+a3 = np.loadtxt("tmp.voronoi_50K")
+r3 = range(0,int(max(a2)+5))
+r = max(r1,r2,r3)
 
 h1, e1 = np.histogram(a1,bins=r)
 h2, e2 = np.histogram(a2,bins=r)
+h3, e3 = np.histogram(a3,bins=r)
 
-mat = np.vstack((e1[:-1],h1,e2[:-1],h2))
+mat = np.vstack((e1[:-1],h1,e2[:-1],h2,e3[:-1],h3))
 m = np.transpose(mat)
-print(m)
+
 np.savetxt('tmp.voronoi',m,fmt='%2i')

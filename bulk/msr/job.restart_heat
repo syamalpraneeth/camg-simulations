@@ -1,0 +1,64 @@
+#!/bin/sh
+
+##################################################################
+##JOB.ARR.SCRIPT                                                ##
+##Submit an array of jobs to make clusters of varying dia       ##
+##Dependencies  : ~/Documents/dev/clusters/bulk-derived         ##
+##Influences    :                                               ##
+##################################################################
+## ver. : 2019-09-04, Syamal Praneeth Chilakalapudi, KIT, INT   ##
+##Author Email    :syamalpraneeth@gmail.com                     ##
+##################################################################
+
+##SBATCH --nodes=6
+##SBATCH --cpus-per-task=20
+##SBATCH --time=1-00:00:00
+
+#SBATCH --array=8 #choosing this to get approx same number of atoms as in nanoglass counterpart
+
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:20:00
+#SBATCH --partition=develop
+
+#SBATCH --job-name=msr_ninb_restart_heat
+#SBATCH --output=msr_%anm_restart_heat.out
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+
+##SBATCH --partition=normal
+
+#CHANGE WORKING DIRECTORY
+cd ${SLURM_SUBMIT_DIR}
+
+#COPY FILES FROM SOURCE
+[[ -d "data" ]] || mkdir data			#make data dir if it doesn't exist
+
+#SUBMIT VARIABLES
+#par=($(awk '{print $1}' param))
+var=$SLURM_ARRAY_TASK_ID
+par[0]=Ni-Nb_1.eam.fs   #pair_coeff
+par[1]=Ni              #element1
+par[2]=Nb              #element2
+par[3]=60              #composition x
+par[4]=40              #composition y
+par[5]=${var}          #dimensions of box (nm)
+par[6]=2000000	       #equilibriation duration 2 ns with timestep 0.001
+
+#SET LAMMPS DIRECTORY AND INITIAL OUTPUTS
+LMP_DIR=/pfs/work6/workspace/scratch/mj0054-cibd-0/lammps/src/lmp_mpi
+echo $SLURM_JOB_NODELIST #Prints all the nodes you requested
+echo $LMP_DIR
+echo $SLURM_CPUS_PER_TASK
+echo $SLURM_JOB_ID
+#RUN SETTINGS
+module purge
+module load compiler/intel/18.0
+module load mpi/impi/2018
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+mpirun -np $SLURM_CPUS_PER_TASK $LMP_DIR -i in.restart_heat -v args "${par[@]}" -l log.msr_${var}nm_restart_heat
+
+exit $?

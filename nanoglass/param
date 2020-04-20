@@ -1,8 +1,0 @@
-CuZr_3.eam.fs	#pair_coeff	* * Ni-Nb_1.eam.fs Ni Nb
-Cu		#element1
-Zr		#element2
-50		#composition x
-50		#composition y
-6410 10000	#size based on the clusmol file that you want
-5.92		#diameter of cluster in nm
-2000 000	#equilibriation duration
