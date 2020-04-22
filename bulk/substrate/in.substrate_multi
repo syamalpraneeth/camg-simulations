@@ -73,9 +73,10 @@ velocity	all create 2000.0 492851 mom yes rot yes dist gaussian
 fix		equilib1 all npt temp 2000 2000 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1
 variable	t1 equal ${T1}/10
 variable	tstop equal $(step)+${T1}
+variable	start_step equal $(step)
 variable	qloop loop 10
 label		l1
-run		${t1} start $(step) stop ${tstop} pre yes post no
+run		${t1} start ${start_step} stop ${tstop} pre yes post no
 write_restart	data/restart.equilib1_${siz}nm
 print		"Successful run iteration ${qloop}" append data/success.equilib1_${siz}nm screen yes
 next		qloop
@@ -85,9 +86,10 @@ unfix		equilib1
 fix		quench all npt temp 2000 300 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1
 variable	t equal ${T2}/100
 variable	tstop equal $(step)+${T2}
+variable        start_step equal $(step)
 variable	qloop loop 100
 label		l2
-run		$t start $(step) stop ${tstop} pre yes post no
+run		$t start ${start_step} stop ${tstop} pre yes post no
 write_restart	data/restart.quench_${siz}nm
 print		"Successful run iteration ${qloop}" append data/success.quench_${siz}nm screen yes
 next		qloop
@@ -149,10 +151,12 @@ comm_style      tiled
 balance		1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_substrate_${siz}nm
 
 #---------------------------------------------------------------------------EQUILIBRATE
+variable        t1 equal ${T1}/10
 variable	tstop equal $(step)+${T1}
+variable        start_step equal $(step)
 variable	qloop loop 10
 label		l3
-run		${t1} start $(step) stop ${tstop} pre yes post no
+run		${t1} start ${start_step} stop ${tstop} pre yes post no
 write_restart	data/restart.equilib2_${siz}nm
 print		"Successful run iteration ${qloop}" append data/success.equilib2_${siz}nm screen yes
 next		qloop
