@@ -1,0 +1,67 @@
+#!/bin/sh
+
+##################################################################
+##JOB.ARR.SCRIPT                                                ##
+##Submit an array of jobs to make melt spun ribbon of NiNb      ##
+##Dependencies  : ~/Documents/dev/clusters/bulk/msr		##
+##Influences    :                                               ##
+##################################################################
+## ver. : 2019-10-15, Syamal Praneeth Chilakalapudi, KIT, INT   ##
+##Author Email    :syamalpraneeth@gmail.com                     ##
+##################################################################
+
+#SBATCH --nodes=3
+#SBATCH --ntasks-per-node=20
+#SBATCH --time=7-00:00:00
+#SBATCH --partition=long
+
+##SBATCH --nodes=1
+##SBATCH --ntasks-per-node=1
+##SBATCH --time=00:50:00
+##SBATCH --partition=develop
+
+#SBATCH --array=24		#choosing this to get approx same number of atoms as in nanoglass counterpart
+#SBATCH --job-name=substrate_cuzr
+#SBATCH --output=substrate_%anm.out
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+
+#CHANGE WORKING DIRECTORY
+cd ${SLURM_SUBMIT_DIR}
+
+#COPY FILES FROM SOURCE
+#cp ~/Documents/dev/bulk/substrate/in.substrate_multi .
+#cp -r ~/Documents/dev/bulk/msr/post .
+[[ -d "data" ]] || mkdir data			#make data dir if it doesn't exist
+
+#SUBMIT VARIABLES
+#par=($(awk '{print $1}' param))
+var=$SLURM_ARRAY_TASK_ID
+par[0]=Cu-Zr_2.eam.fs   #pair_coeff
+par[1]=Cu              #element1
+par[2]=Zr              #element2
+par[3]=50              #composition x
+par[4]=50              #composition y
+par[5]=${var}	       #dimensions of box (nm)
+par[6]=2000000       #equilibriation duration 2 ns with timestep 0.001
+par[7]=0.01		#quench rate 0.01 K/ps. Leave as 500 for test
+
+#SET LAMMPS DIRECTORY AND INITIAL OUTPUTS
+LMP_DIR=/pfs/work6/workspace/scratch/mj0054-cibd-0/lammps/src/lmp_mpi
+echo date
+echo Nodes: $SLURM_JOB_NODELIST #Prints all the nodes you requested
+echo LAMMPS Dir: $LMP_DIR
+echo Number of Cores: $SLURM_NTASKS
+
+#RUN SETTINGS
+module purge
+module load compiler/intel/18.0
+module load mpi/impi/2018
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+#mpirun -np $SLURM_CPUS_PER_TASK $LMP_DIR -i in.substrate_multi -v args "${par[@]}" -l log.substrate_${var}nm
+#srun --mpi=list
+srun --mpi=pmi2 $LMP_DIR -i in.substrate_multi -v args "${par[@]}" -l log.substrate_${var}nm
+exit $?

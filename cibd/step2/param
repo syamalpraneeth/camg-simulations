@@ -1,6 +1,0 @@
-4		#lattice parameter
-200		#dimensions of block in nm
-2000		#highT
-300		#coolT
-2000000		#run 
-10e-5		#quench rate 10e-05K/tstep

@@ -1,0 +1,37 @@
+#!/bin/bash                                                                
+#######################################                                    
+# Specify nodes, processors per node,                                      
+# and maximum running time                                                 
+#######################################                                    
+#PBS -N MD-CIBD
+#PBS -o output.out                                                              #PBS -e output.out
+#PBS -l select=3:ncpus=30
+#PBS -l walltime=7-00:00:00                                                  
+#PBS -q general
+#PBS -P ldrd                                                               
+#######################################                                    
+# Enter directory and set PATH                                             
+#######################################                                    
+
+echo $PBS_O_WORKDIR
+cd $PBS_O_WORKDIR
+#GIVE /PATH/TO/DIR/ if $PBS_O_WORKDIR is echo-ing something blank
+
+[[ -d "data" ]] || mkdir data                   #make data dir if it doesn't exist
+
+par[0]=Cu-Zr_2.eam.fs    #pair_coeff
+par[1]=Cu               #element1
+par[2]=Zr               #element2
+par[3]=50               #composition x
+par[4]=50               #composition y
+par[5]=50	        #deposition energy in eV
+par[6]=2000000          #equilibriation duration timesteps
+par[7]=3             #diameter of cluster being deposited in nm
+par[8]=24           #size of substrate being used in nm
+                                                    
+echo "Start: `date`"   
+
+module load OpenMPI/1.8.2-GCC-4.8.3                                          
+mpirun /home/caopeng/Lammps/lammps-16Feb16/src/lmp_mpi -i in.cibd_multi -v args "${par[@]}" -l log.cibd_multi_3nm
+                                                          
+echo "End: `date`"

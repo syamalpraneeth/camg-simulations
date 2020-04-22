@@ -32,14 +32,8 @@ fix		layrs all property/atom i_lyr
 boundary        p p p
 lattice		bcc 3.6
 
-region		sbox block -$s $s -$s $s -${half_film_thick} ${half_film_thick} units box
-region          box block -$s $s -$s $s -${half_film_thick} ${half_film_thick} units box
-
-create_box 	4 sbox
-create_atoms    1 region box
-#set             type 1 type/fraction 2 0.2 3456
-set             region box type/fraction 2 ${frac} 3456
-neigh_modify	every 1 delay 0 check yes
+processors	* * *
+read_restart	data/restart.equilib1_${siz}nm
 
 newton		on
 pair_style	eam/fs
@@ -65,23 +59,6 @@ minimize	1e-10  1e-10  100  100
 #reset_timestep	0
 
 #--------------------------------------------------------------------------------MAKE GLASS
-#fix		f4 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file Rad2Theta_1.xrd
-#run		0
-#unfix		f4
-
-velocity	all create 2000.0 492851 mom yes rot yes dist gaussian
-fix		equilib1 all npt temp 2000 2000 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1
-variable	t1 equal ${T1}/10
-variable	tstop equal $(step)+${T1}
-variable	qloop loop 10
-label		l1
-run		${t1} start $(step) stop ${tstop} pre yes post no
-write_restart	data/restart.equilib1_${siz}nm
-print		"Successful run iteration ${qloop}" append data/success.equilib1_${siz}nm screen yes
-next		qloop
-jump		in.substrate_multi l1
-unfix		equilib1
-
 fix		quench all npt temp 2000 300 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1
 variable	t equal ${T2}/100
 variable	tstop equal $(step)+${T2}
