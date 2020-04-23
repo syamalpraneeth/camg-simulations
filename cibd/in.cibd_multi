@@ -30,7 +30,7 @@ variable        siz equal ${args}
 next		args
 variable	subsiz equal ${args}
 
-variable        th equal 1000 #${T2}/20
+variable        th equal ${T2}/20
 variable        clusfile string "data.clus_${siz}nm"
 variable        subfile string "data.substrate_${subsiz}nm"
 
@@ -49,8 +49,8 @@ pair_style      eam/fs
 pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}
 mass            1 63.546
 mass            2 91.224
-min_style       fire
-minimize        1e-10  1e-10  100  100
+#min_style       fire
+#minimize        1e-10  1e-10  100  100
 group           cluster empty
 group		statd empty
 group		film empty
@@ -59,7 +59,7 @@ group		interface empty
 group		core empty
 group		cores empty
 group		shell empty
-group		eq empty
+group           eq empty
 
 #----------------------------------------------------------------COMPUTES AND THERMO
 compute         c1 statd temp
@@ -75,7 +75,7 @@ thermo          ${th}
 #-----------------------------------------------------------------FIXES FOR SUBSTRATE
 fix             layrs all property/atom i_lyr
 fix		corint all property/atom i_int
-fix		dep all property/atom i_depquer
+fix             dep all property/atom i_depquer
 
 set             group buffr i_lyr 1
 set             group statd i_lyr 2
@@ -84,7 +84,7 @@ group		substrate union buffr statd fixed
 set		group substrate i_int 1
 set		group cores i_int 2
 set		group interface i_int 3
-
+set		group substrate i_depquer 1
 fix             f1 buffr nve
 fix             f2 statd nvt temp 300 300 0.01
 velocity        fixed set NULL NULL NULL
@@ -97,7 +97,7 @@ comm_style      tiled
 balance         1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${siz}nm_${en}eV
 
 #variable	dr equal floor(${T2}/5)
-variable	th3 equal 3*${T2}
+variable	th3 equal 1*${T2}
 variable	dr equal ${th3}
 dump            d2 all custom ${dr} data/lammpstrj.dep.cibd id type x y z vx vy vz i_lyr i_int i_depquer
 dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus id type x y z vx vy vz i_lyr i_int i_depquer
@@ -105,12 +105,12 @@ dump		d4 film custom ${dr} data/lammpstrj.dep.film id type x y z vx vy vz i_lyr 
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0
-variable        Niter equal 50 #1000
+variable        Niter equal 100 #1000
 variable a loop ${Niter}
 label l1
 
 #------------------------------------------------------------------1. introduce cluster
-variable        filmtop equal ${top}				#Film top keeps changing withe every deposition. To account for growth of film
+if "$a==1" then "variable ftop equal ${top}" "variable filmtop equal ${ftop}"		#Film top keeps changing withe every deposition. To account for growth of film
 
 group           cluster id <= 0
 read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
@@ -118,9 +118,6 @@ read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data fi
 group		film union film cluster
 set             group cluster i_lyr 4
 
-variable	hfheight equal $(lz)/2
-variable        diff equal zhi-${filmtop}
-print		${diff}
 variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
 variable        clusdia equal ${clusdiaeval}
 
@@ -128,15 +125,13 @@ variable        up equal 2*${clusdia}
 #variable	up equal 1.4*${clusdia}					 #WRONG AND BAD FOR DYANMICS, good for testing
 
 #print		${up}
-if "${diff}<${up}" then "change_box      all z delta 0 ${up} units box"
-
 #------------------------------------------------------------------2. fixes for cluster
 #fix             f5 cluster nve
 fix		f6 film nve
 
 #------------------------------------------------------------------3. recolour
 variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
-variable        z equal "v_filmtop+v_clusdia"
+variable        z equal ${filmtop}+${clusdia}
 displace_atoms  cluster move 0 0 ${z} units box
 region          core sphere 0 0 ${z} ${Rs} side in
 group           core region core
@@ -156,64 +151,86 @@ region		core delete
 #If yes, an equilibration run is made.
 #If not, deposition happens.
 
-variable        dxx   equal  "v_dispX-0.5*v_BoxL" 		#x and y coordinates of the n+1th deposited cluster
+variable        dxx   equal  "v_dispX-0.5*v_BoxL"               #x and y coordinates of the n+1th deposited cluster
 variable        dyy   equal  "v_dispY-0.5*v_BoxL"
 variable        p equal ${dxx}
 variable        q equal ${dyy}
-variable	Rq equal 3*(${clusdia}/2)
-region		query sphere $p $q ${filmtop} ${Rq} side in
-#group		query region query
-#group		search union film query
-variable	count equal count(film,query) 			#Check: Are there any unequilibrated cluster atoms in the spherical region around n+1th deposited cluster?
-
+variable        Rq equal 3*(${clusdia}/2)
+region          query sphere $p $q ${filmtop} ${Rq} side in
+#group          query region query
+#group          search union film query
+variable        count equal count(film,query)                   #Check: Are there any unequilibrated cluster atoms in the spherical region around n+1th deposited cluster?
+ 
 #if count=0 there are no unequilibrated atoms in the vicinity
 #if count>0 there are unequilibrated atoms
-if "${count>0}" then "run ${T2}" "group equilibrated union equilibrated cluster" "set group equilibrated i_depquer 1"
+if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated cluster" "set group equilibrated i_depquer 2"
 
 #------------------------------------------------------------------5. set deposit conditions
 variable        mclus equal mass(cluster)*(1.6605e-24)*(1e-3)   #metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
 variable        E equal ${en}*(1.6e-19)                         #units: eV = 1.6e-19 Joules
 variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: vel = 1 Angstr/ps = 100 m/s
+variable        dxx   equal  "v_dispX-0.5*v_BoxL"
+variable        dyy   equal  "v_dispY-0.5*v_BoxL"
+variable        p equal ${dxx}
+variable        q equal ${dyy}
 
-variable        dzz   equal "v_filmtop+1.4*(v_clusdia)"		#deposit height of the cluster
-variable        flyT equal "(v_dzz-v_filmtop)/(abs(v_cvel)*(0.001))" #this is an indirect way of saying that the cluster dep height is always 1.4*cluster diameter above the surface
-variable        runT equal "floor(v_flyT)" #"floor(v_flyT+v_T2)"
+region		cylinder cylinder z $p $q ${siz} $(zlo) $(zhi)		#evaluate highest point of film below cluster
+variable	cnt equal count(film,cylinder)
+if "$a>1 && ${cnt}>0" then "variable ftop equal bound(film,zmax,cylinder)" "variable filmtop equal ${ftop}"
 
-#variable        dzz   equal "v_filmtop+0.5*(v_clusdia)"			#WRONG AND BAD FOR DYANMICS, good for testing
-#variable        flyT equal "(v_dzz-v_filmtop)/(abs(v_cvel)*(0.001))"	#WRONG AND BAD FOR DYANMICS, good for testing
-#variable	runT equal "2*floor(v_flyT+v_T2)"			#WRONG AND BAD FOR DYANMICS, good for testing
+variable        hfheight equal $(lz)/2
+variable        diff equal $(zhi)-${filmtop}
+print           ${diff}
+if "${diff}<${up}" then "change_box      all z delta 0 ${up} units box"
 
-variable	thet1 equal random(0,360,458784)
+variable        dzz   equal ${filmtop}+1.4*${clusdia}
+variable        flyT equal (${dzz}-${filmtop})/(abs(${cvel})*(0.001)) #this is an indirect way of saying that the cluster dep height is always 1.4*cluster diameteri
+variable        runT equal "floor(v_flyT)+100" #"floor(v_flyT+v_T2)"
+
+#create_atoms	3 single 0 0 ${filmtop}
+#write_dump	all atom dump.atom
+
+variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
 variable	thet2 equal random(0,360,879869)
 variable	thet3 equal random(0,360,387224)
-displace_atoms  cluster move $p $q ${dzz} units box
-displace_atoms	cluster rotate $p $q ${dzz} 1 0 0 ${thet1}
-displace_atoms  cluster rotate $p $q ${dzz} 0 1 0 ${thet2}
-displace_atoms  cluster rotate $p $q ${dzz} 0 0 1 ${thet3}
+variable        zcom equal xcm(cluster,z)
+variable        zmove   equal ${filmtop}+1.4*${clusdia}-${zcom}	#move cluster 1.4 diameter lengths from surface
+displace_atoms  cluster move $p $q ${zmove} units box
+variable k equal xcm(cluster,x)
+variable l equal xcm(cluster,y)
+variable m equal xcm(cluster,z)
+displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
+write_dump all atom dump2.atom
+displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
+write_dump all atom dump3.atom
+displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
+write_dump all atom dump4.atom
 
-velocity        cluster create 300 74657362 mom yes rot yes
+velocity        cluster create 300 74657362 mom yes rot yes		#set temperature of cluster
 velocity        cluster set 0 0 ${cvel} units box
 
 variable	boxht equal $(zhi)
-print           "New top of film for iteration $a is ${top}" append data/filmtop.log screen yes
+print           "New top of film for iteration $a is ${filmtop}" append data/filmtop.log screen yes
 print           "approx clus diameter ${clusdia} angstrom"
 print           'deposit height ${dzz} Angstrom'
 print		'box z+ height is: ${boxht}'
 print           'cvel is ${cvel} Angstrom/picosecs'
 print           'mclus is ${mclus} grams/mol'
-print           'Energy is ${E} V'
-
+print           'Energy is ${E} eV'
 
 #-------------------------------------------------------------------DEPOSIT
 run		${runT}
 
-variable        filmtop equal bound(film,zmax)
+#variable        filmtop equal bound(film,zmax)
 write_restart   data/restart.deposit_${Niter}
 print           "Successful run iteration $a of ${Niter} at $(step)" append data/deposit_success.log screen yes #for data recovery
 
 #-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
+group           film union film cluster
 group           cluster clear
 group           substrate clear
+
+region		cylinder delete
 reset_ids
 
 #if "$a<2" then	"compute c3 all cluster/atom 3.5"
@@ -232,9 +249,10 @@ reset_ids
 next		a
 jump            in.cibd_multi l1
 
+if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated film" "set group equilibrated i_depquer 2"
 
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
-unfix		layrs
+#unfix		layrs
 write_data	data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
 
 print		'Settings Summary:'
