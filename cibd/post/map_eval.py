@@ -100,7 +100,7 @@ prod = int(((xhi-xlo)//(dt))*((yhi-ylo)//(dt)))
 #print(np.amin(mat[:,1]))
 #print(np.amax(mat[:,1]))
 grid = np.zeros((prod,4)) #making a coordinate grid
-rat = np.full((prod,1),-1) #making a column for ratios
+rat = np.full((prod,1),-2) #making a column for ratios
 grid=np.append(grid,rat,axis=1)
 #print(np.shape(grid))
 #print(np.shape(rat))
@@ -177,7 +177,11 @@ for i in range(0,len(grid)):
 #		fs=float(grid[i,2]/(grid[i,2]+grid[i,3]))
 #		if fs>=0.5:grid[i,4]=float(grid[i,2]/(grid[i,2]+grid[i,3]))
 #		grid[i,4]=float(math.exp(grid[i,2]/(grid[i,2]+grid[i,3])))
-		grid[i,4]=float(grid[i,2]/(grid[i,2]+grid[i,3]))
+		diff = float(grid[i,2] - grid[i,3])
+		if diff < 0: grid[i,4] = -1
+		elif diff == 0: grid[i,4] = 0
+		else: grid[i,4] = 1
+#		grid[i,4]=float(grid[i,2]/(grid[i,2]+grid[i,3]))
 #		grid[i,4]=float(10**(grid[i,2]/(grid[i,2]+grid[i,3])))
 #		print(float(d[5]))
 
@@ -194,15 +198,17 @@ l=len(xsp)
 #fig, ax = plt.hist2d(grid[:,0],grid[:,1],bins=[l,l],weights=grid[:,4])
 fig, ax = plt.subplots()
 #assign volume of the cube a colour based on ratio
-h = ax.hist2d(grid[:,0],grid[:,1],bins=l,weights=grid[:,4],vmin=-1,vmax=1)
+h = ax.hist2d(grid[:,0],grid[:,1],bins=l,weights=grid[:,4],vmin=-2,vmax=1,cmap='gray')
 plt.xlabel('X')
 plt.ylabel('Y')
 cbar = plt.colorbar(h[3],ax=ax)
 cbar.set_label('Compositional variation')
 fig.suptitle('elemental composition heatmap @ Z='+str(z), fontsize=16)
+#cmap=plt.cm.get_cmap('gray')
+#plt.view_colormap('viridis')
 ax.set_aspect(aspect=1)
 #fig1 = plt.figure(1,figsize(6.4,2))
 #plt.show()
-plt.savefig(st+'/heatmap_'+str(z)+'.png',format='png',dpi=600)
+plt.savefig(st+'/heatmap2_'+str(z)+'.png',format='png',dpi=600)
 
 os.remove(st+'/tmp.coords')
