@@ -39,8 +39,8 @@ variable        subfile string "data.substrate_${subsiz}nm"
 read_restart    restart.substrate_multi_${subsiz}nm #restart.sub
 
 variable        BoxL equal lx
-variable        dispX equal random(0,${BoxL},475414)
-variable        dispY equal random(0,${BoxL},475414)
+#variable        dispX equal 2 #random(0,${BoxL},475414)
+#variable        dispY equal 3 #random(0,${BoxL},475414)
 variable        top equal bound(all,zmax)
 
 #----------------------------------------------------------------INTITIALIZE
@@ -147,59 +147,14 @@ set             group cores i_int 2
 set             group interface i_int 3
 region		core delete
 
-#------------------------------------------------------------------4. equilibration decisions
-#here a check is made in the nth deposition if n+1th cluster is in the neighborhood of unequilibrated atoms.
-#If yes, an equilibration run is made.
-#If not, deposition happens.
-
-variable        dxx   equal  "v_dispX-0.5*v_BoxL"               #x and y coordinates of the n+1th deposited cluster
-variable        dyy   equal  "v_dispY-0.5*v_BoxL"
-variable        p equal ${dxx}					#coords assigned
-variable        q equal ${dyy}
-variable        Rq equal 3*(${clusdia}/2)
-region          query sphere $p $q ${filmtop} ${Rq} side in
-#group          query region query
-#group          search union film query
-variable        count equal count(film,query)                   #Check: Are there any unequilibrated cluster atoms in the spherical region around landing area of  n+1th deposited cluster?
- 
-#if count=0 there are no unequilibrated atoms in the vicinity
-#if count>0 there are unequilibrated atoms
-if "${count}==0" then "print 'no unequilibrated atoms in deposition zone'"
-if "${count}>0" then "print '${count} uneq atoms in deposition zone'" "run ${T2}" "group equilibrated union equilibrated cluster" "set group equilibrated i_depquer 2"
-
-#------------------------------------------------------------------5. set deposit conditions
+#------------------------------------------------------------------4. set deposit conditions
 variable        mclus equal mass(cluster)*(1.6605e-24)*(1e-3)   #metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
 variable        E equal ${en}*(1.6e-19)                         #units: eV = 1.6e-19 Joules
 variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: vel = 1 Angstr/ps = 100 m/s
-#variable        dxx   equal  "v_dispX-0.5*v_BoxL"
-#variable        dyy   equal  "v_dispY-0.5*v_BoxL"
-#if "$a>1" then	"variable pprev equal $p" "variable qprev equal $q"
-#variable        p equal ${dxx}
-#variable        q equal ${dyy}
-
-#variable	dist equal sqrt(($p-${pprev})^2+($q-${qprev})^2)
-region		cylinder cylinder z $p $q ${siz} $(zlo) $(zhi)		#define cylinder at area of deposition of cluster
-variable	cnt equal count(film,cylinder)
-if "$a==1" then "variable pillarht equal 0"
-if "$a>1 && ${cnt}>0" then "variable ftop equal bound(film,zmax,cylinder)" & #evaluate highest point of film below cluster
-#"variable filmtopprev equal ${filmtop}" &
-"variable filmtop equal ${ftop}" &
-#"variable pillarht equal ${filmtop}-${filmtopprev}"
-#Preventing formation of pillaring. I think this will avoid pores.
-if "${pillarht}>${clusdia}" then "delete_atoms cluster" "print 'This dep may form pillars, re-attempting deposit'" "jump in.cluster.multi l1"
-"if "${dist}<=${clusdia}" then "delete_atoms cluster" "print 'This dep may form pillars, re-attempting deposit'" "jump in.cluster.multi l1""
-
-variable        hfheight equal $(lz)/2
-variable        diff equal $(zhi)-${filmtop}
-print           ${diff}
-if "${diff}<${up}" then "change_box      all z delta 0 ${up} units box"
-
-variable        dzz   equal ${filmtop}+1.4*${clusdia}
-variable        flyT equal (${dzz}-${filmtop})/(abs(${cvel})*(0.001)) #this is an indirect way of saying that the cluster dep height is always 1.4*cluster diameteri
-variable        runT equal "floor(v_flyT)+100" #"floor(v_flyT+v_T2)"
-
-#create_atoms	3 single 0 0 ${filmtop}
-#write_dump	all atom dump.atom
+variable        dxx   equal  "*v_BoxL"
+variable        dyy   equal  "*v_BoxL"
+variable        p equal ${dxx}
+variable        q equal ${dyy}
 
 variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
 variable	thet2 equal random(0,360,879869)
