@@ -1,0 +1,87 @@
+#------------------------------------------------------------------1. introduce cluster
+if "$a==1" then "variable ftop equal ${top}" "variable filmtop equal ${ftop}"		#Film top keeps changing withe every deposition. To account for growth of film
+
+group           cluster id <= 0
+read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
+#group           substrate subtract all cluster
+group		film union film cluster
+set             group cluster i_lyr 4
+
+variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
+variable        clusdia equal ${clusdiaeval}
+
+variable        up equal 2*${clusdia}
+#variable	up equal 1.4*${clusdia}					 #WRONG AND BAD FOR DYANMICS, good for testing
+
+#print		${up}
+#------------------------------------------------------------------2. fixes for cluster
+#fix             f5 cluster nve
+fix		f6 film nve
+
+#------------------------------------------------------------------3. recolour
+variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
+variable        z equal ${filmtop}+${clusdia}
+displace_atoms  cluster move 0 0 ${z} units box
+region          core sphere 0 0 ${z} ${Rs} side in
+group           core region core
+group           shell subtract cluster core
+group           t1 type 1 3
+group           t2 type 2 4
+group           shellt1 intersect shell t1
+group           shellt2 intersect shell t2
+group           interface union shell interface
+group           cores union core cores
+set             group cores i_int 2
+set             group interface i_int 3
+region		core delete
+
+#------------------------------------------------------------------4. set deposit conditions
+variable        mclus equal mass(cluster)*(1.6605e-24)*(1e-3)   #metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
+variable        E equal ${en}*(1.6e-19)                         #units: eV = 1.6e-19 Joules
+variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: vel = 1 Angstr/ps = 100 m/s
+#variable        dxx   equal  "*v_BoxL"
+#variable        dyy   equal  "*v_BoxL"
+#variable        p equal ${dxx}
+#variable        q equal ${dyy}
+
+variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
+variable	thet2 equal random(0,360,879869)
+variable	thet3 equal random(0,360,387224)
+variable        zcom equal xcm(cluster,z)
+variable        zmove   equal ${filmtop}+1.4*${clusdia}-${zcom}	#move cluster 1.4 diameter lengths from surface
+displace_atoms  cluster move $p $q ${zmove} units box
+variable k equal xcm(cluster,x)
+variable l equal xcm(cluster,y)
+variable m equal xcm(cluster,z)
+displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
+write_dump all atom dump2.atom
+displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
+write_dump all atom dump3.atom
+displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
+write_dump all atom dump4.atom
+
+velocity        cluster create 300 74657362 mom yes rot yes		#set temperature of cluster
+velocity        cluster set 0 0 ${cvel} units box
+
+variable	boxht equal $(zhi)
+print           "New top of film for iteration $a is ${filmtop}" append data/filmtop.log screen yes
+print           "approx clus diameter ${clusdia} angstrom"
+print           'deposit height ${dzz} Angstrom'
+print		'box z+ height is: ${boxht}'
+print           'cvel is ${cvel} Angstrom/picosecs'
+print           'mclus is ${mclus} grams/mol'
+print           'Energy is ${E} eV'
+
+
+#variable        filmtop equal bound(film,zmax)
+write_restart   data/restart.deposit_${Niter}
+print           "Successful run iteration $a of ${Niter} at $(step)" append data/deposit_success.log screen yes #for data recovery
+
+#-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
+group           film union film cluster
+group           cluster clear
+group           substrate clear
+
+#region		query delete
+#region		cylinder delete
+reset_ids

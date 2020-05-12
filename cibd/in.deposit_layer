@@ -1,0 +1,41 @@
+#variable i	loop 9
+#label	lab1
+#	variable l1	loop 2
+#	label	lab2
+#		variable p=$r
+#		if "a%2==0" then "if "l1==1" then "variable siz equal 4-${l1}"" "variable ix equal 1" "variable p equal $p+$r" &
+#		else "variable siz equal 4" "variable ix equal 0"
+#		if "${l1}==1" then "variable p equal $p+2*$r"
+		
+
+variable ind loop 2 #in each row I have two
+variable lab1
+
+	variable q equal $r+${qoff}
+	variable row1 loop 5
+	label lab2
+	if "${ind}==1" then "variable p equal $r+${poff}" else "variable p equal 3*$r+${poff}"
+		variable col1 loop ${siz}
+		variable lab3
+			include in.deposit_multi
+			variable p equal $p+${siz}*$r
+			next col
+			jump in.deposit_layer lab3
+		variable q equal $q+((5/3)*$r)
+		next row1
+	jump in.deposit_layer lab2
+
+	variable q equal (1+(5/3))*$r+${qoff}
+	if "${ind}%2==0" then "variable siz equal 4"
+	variable row2 loop 4
+	label lab4
+	if "${ind}==1" then "variable p equal 2*$r+${poff}" else "variable p equal 4*$r+${poff}"
+		variable col loop ${siz}
+		variable lab5
+			include in.deposit_multi
+			variable p equal $p+${siz}*$r
+			next col
+			jump in.deposit_layer lab5
+		variable q equal $q+((5/3)*$r)
+		next row1
+	jump in.deposit_layer lab4
