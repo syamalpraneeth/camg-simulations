@@ -106,8 +106,7 @@ dump		d4 film custom ${dr} data/lammpstrj.dep.film id type x y z vx vy vz i_lyr 
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0
-variable        Niter equal 100 #1000
-variable a loop ${Niter}
+variable a loop 2
 label l1
 
 #------------------------------------------------------------------1. introduce cluster
@@ -123,11 +122,8 @@ variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
 variable        clusdia equal ${clusdiaeval}
 
 variable        up equal 2*${clusdia}
-#variable	up equal 1.4*${clusdia}					 #WRONG AND BAD FOR DYANMICS, good for testing
 
-#print		${up}
 #------------------------------------------------------------------2. fixes for cluster
-#fix             f5 cluster nve
 fix		f6 film nve
 
 #------------------------------------------------------------------3. recolour
@@ -196,8 +192,8 @@ group           film union film cluster
 group           cluster clear
 group           substrate clear
 
-region		query delete
-region		cylinder delete
+#region		query delete
+#region		cylinder delete
 reset_ids
 
 #if "$a<2" then	"compute c3 all cluster/atom 3.5"
@@ -219,7 +215,6 @@ jump            in.cibd_multi l1
 if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated film" "set group equilibrated i_depquer 2"
 
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
-#unfix		layrs
 write_data	data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
 
 print		'Settings Summary:'
