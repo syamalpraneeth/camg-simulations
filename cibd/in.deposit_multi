@@ -1,5 +1,6 @@
 #------------------------------------------------------------------1. introduce cluster
 if "$a==1" then "variable ftop equal ${top}" "variable filmtop equal ${ftop}"		#Film top keeps changing withe every deposition. To account for growth of film
+print "Works for iter ${itr} and index ${ind}" append     data/pq.log screen yes
 
 group           cluster id <= 0
 read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
@@ -44,6 +45,21 @@ variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: ve
 #variable        p equal ${dxx}
 #variable        q equal ${dyy}
 
+region          cylinder cylinder z $p $q ${siz} $(zlo) $(zhi)          #define cylinder at area of deposition of cluster
+variable        cnt equal count(film,cylinder)
+if "$a==1" then "variable pillarht equal 0"
+if "$a>1 && ${cnt}>0" then "variable ftop equal bound(film,zmax,cylinder)" "variable filmtop equal ${ftop}"
+ #evaluate highest point of film below cluster #"variable filmtopprev equal ${filmtop}" "variable filmtop equal ${ftop}"
+
+variable        hfheight equal $(lz)/2
+variable        diff equal $(zhi)-${filmtop}
+print           ${diff}
+if "${diff}<${up}" then "change_box      all z delta 0 ${up} units box"
+ 
+variable        dzz   equal ${filmtop}+1.4*${clusdia}
+variable        flyT equal (${dzz}-${filmtop})/(abs(${cvel})*(0.001)) #this is an indirect way of saying that the cluster dep height is always 1.4*cluster diameteri
+variable        runT equal "floor(v_flyT)" #"floor(v_flyT+v_T2)"
+
 variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
 variable	thet2 equal random(0,360,879869)
 variable	thet3 equal random(0,360,387224)
@@ -72,10 +88,11 @@ print           'cvel is ${cvel} Angstrom/picosecs'
 print           'mclus is ${mclus} grams/mol'
 print           'Energy is ${E} eV'
 
+run		${runT}
 
 #variable        filmtop equal bound(film,zmax)
-write_restart   data/restart.deposit_${Niter}
-print           "Successful run iteration $a of ${Niter} at $(step)" append data/deposit_success.log screen yes #for data recovery
+write_restart   data/restart.deposit_${ind}
+print           "Successful run iteration ${ind} at $(step)" append data/deposit_success.log screen yes #for data recovery
 
 #-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
 group           film union film cluster
@@ -83,5 +100,7 @@ group           cluster clear
 group           substrate clear
 
 #region		query delete
-#region		cylinder delete
+region		cylinder delete
 reset_ids
+
+variable	a equal $a+1

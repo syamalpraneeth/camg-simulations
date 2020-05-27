@@ -30,7 +30,8 @@ variable        siz equal ${args}
 next		args
 variable	subsiz equal ${args}
 
-variable        th equal ${T2}/20
+#variable        th equal ${T2}/5
+variable	th equal 2000
 variable        clusfile string "data.clus_${siz}nm"
 variable        subfile string "data.substrate_${subsiz}nm"
 
@@ -106,16 +107,20 @@ dump		d4 film custom ${dr} data/lammpstrj.dep.film id type x y z vx vy vz i_lyr 
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0
-r=${siz}*5
+variable 	r equal ${siz}*5
 
-variable a loop 3
+variable itr loop 3
+#variable itr equal 2
+variable a equal 1
+variable depcnt equal 1
 label label1
-if "$a%2==0" then "variable poff equal $r" "variable qoff equal (5/3)*$r"
+variable crit equal ${itr}%2
+if "(${crit})==0" then "variable poff equal $r" "variable qoff equal (5/3)*$r" else "variable poff equal 0" "variable qoff equal 0"
 include		in.deposit_layer 			#deposit 4 "sites" of the layer
 run		${runT}					#equilibrate layer
-next		a
+next		itr
 #if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated film" "set group equilibrated i_depquer 2"
-jump            in.cibd_multi label1
+jump            in.cibd_multi_hcp label1
 
 #---------------------------------------------------OUTPUTS
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
