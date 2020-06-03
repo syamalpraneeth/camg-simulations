@@ -94,8 +94,9 @@ fix		f1 all npt temp 2000 2000 0.1 iso 0 0 0.1
 
 variable	end equal ($(step)+${T1})
 variable	inter equal (${T1})/10
+variable	start_step equal $(step)
 label		lab1
-run		${inter} start $(step) stop ${end} post no
+run		${inter} start ${start_step} stop ${end} post no
 print		"Succeeded step $(step); target step ${end}" append data/success.equilib1_${siz}nm
 write_restart	data/restart.equilib1_${siz}nm
 if 		"$(step)<${end}" then "jump in.glass lab1"
@@ -105,8 +106,9 @@ unfix		f1
 fix		f2 all npt temp 2000 ${T_cool} 0.1 iso 0 0 0.1 #iso 1.01325 1.01325 1
 
 variable	end equal ($(step)+${tquench})
+variable	start_step equal $(step)
 label		lab2
-run		${quench_inter} start $(step) stop ${end} post no
+run		${quench_inter} start ${start_step} stop ${end} post no
 print		"Succeeded step $(step); target step ${end}" append data/success.quench_${siz}nm
 write_restart	data/restart.quench_${siz}nm
 if 		"$(step)<${end}" then "jump in.glass lab2"
@@ -117,8 +119,9 @@ fix		f3 all npt temp ${T_cool} ${T_cool} 0.1 iso 0 0 0.1 #iso 1.01325 1.01325 1
 
 variable	end equal ($(step)+${T1})
 variable	inter equal (${T1})/10
+variable	start_step equal $(step)
 label		lab3
-run		${inter} start $(step) stop ${end} post no
+run		${inter} start ${start_step} stop ${end} post no
 print		"Succeeded step $(step); target step ${end}" append data/success.equilib2_${siz}nm
 write_restart	data/restart.equilib2_${siz}nm
 if 		"$(step)<${end}" then "jump in.glass lab3"
@@ -148,8 +151,9 @@ write_dump	all custom data/dump.voronoi_${T_hot}K_${siz}nm id type x y z c_vor[*
 fix		f4 all nve
 variable	end equal ($(step)+${T1})
 variable	inter equal (${T1})/10
+variable	start_step equal $(step)
 label		lab4
-run		${inter} start $(step) stop ${end} post no
+run		${inter} start ${start_step} stop ${end} post no
 print		"Succeeded step $(step); target step ${end}" append data/success.equilib3_${siz}nm
 write_restart	data/restart.equilib3_${siz}nm
 if 		"$(step)<${end}" then "jump in.glass lab4"
