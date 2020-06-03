@@ -1,0 +1,5 @@
+Post process and plot data output from msr simulations.
+Prerequisites: pizza.py package to read log files
+		python
+
+Simply execute *.sh file after checking execute permissions. chmod u+x
