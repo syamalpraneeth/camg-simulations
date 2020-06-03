@@ -148,7 +148,7 @@ fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriat
 
 timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
 fix             swap all atom/swap ${nevery} ${nat} 391248 ${myT} ke no types 1 2
-thermo_style    custom step pe ke press temp vol enthalpy density etotal f_swap[1] f    _swap[2]
+thermo_style    custom step pe ke press temp vol enthalpy density etotal f_swap[1] f_swap[2]
 run             200000 every 20000 "write_restart data/restart.fixatswp.*"
 unfix           swap
 unfix           hold
