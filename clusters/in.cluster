@@ -33,6 +33,9 @@ variable	lat equal 3.6				#lattice parameter to define spacings
 variable	s equal (${dia}/2+1)*10			#evalate box side based on cluster size
 variable	R equal (${dia}/2)*10 #*(${lat})
 
+variable	T_hot equal 2000
+variable	T_cool equal 50
+
 #--------------------------------------------------------------------------------INTIALISE
 units           metal					#fundamental LAMMPS and MD conditions initialization
 dimension       3
@@ -69,7 +72,7 @@ timestep        0.0010					#standard timestep 1fs for metallic systems
 #--------------------------------------------------------------------------------MINIMISE
 dump            d1 all custom ${df} data/whole_${dia}nm.lammpstrj id type x y z vx vy vz
 min_style       fire					#recommended by Prof. Penghui Cao, UC Irvine
-minimize        1e-10  1e-10  100  100
+minimize        1e-10  1e-10  100  100			#minimizing forces in the material intended to be bulk glass
 
 #--------------------------------------------------------------------------------FIXES
 #fix		f4 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_1_${dia}nm.xrd
@@ -78,21 +81,22 @@ minimize        1e-10  1e-10  100  100
 
 #--------------------------------------------------------------------------------MAKE GLASS
 #velocity	subst all 100.0 492851 mom yes rot yes dist gaussian
-#fix		melt all npt temp 100 2000 0.1 iso 1.01325 1.01325 0.1
+#fix		melt all npt temp 100 ${T_hot} 0.1 iso 1.01325 1.01325 0.1
 #run		${T1}
 #unfix		melt
 
-velocity	all create 2000.0 492851 mom yes rot yes dist gaussian		#assign bulk a Gaussian temp distribtion of 2000K
-fix		hold all npt temp 2000 2000 0.1 iso 0 0 0.1 #iso 1.01325 1.01325 0.1
+velocity	all create ${T_hot} 492851 mom yes rot yes dist gaussian		#assign bulk a Gaussian temp distribtion of 2000K
+fix		hold all npt temp ${T_hot} ${T_hot} 0.1 iso 0 0 0.1 #iso 1.01325 1.01325 0.1
 run		${T1}
 unfix		hold								#unfixes swtich off fixes which are not necessary in future runs
 
-fix             quench all npt temp 2000 50 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1 #quenching bulk to supercooled state
+fix             quench all npt temp ${T_hot} ${T_cool} 0.1 iso 0 0 0.1 #1.01325 1.01325 0.1 #quenching bulk to supercooled state
 variable        t equal ${T2}/10
 variable        tstop equal $(step)+${T2}
+variable        start_step equal $(step)
 variable        qloop loop 10							#this loop is to save progress at ever $t steps of the whole run
 label           l1
-run             $t start $(step) stop ${tstop} pre yes post no
+run             $t start ${start_step} stop ${tstop} pre yes post no
 write_restart   data/restart.quench_${dia}nm					#record progress to log file
 print           "Successful run iteration ${qloop}" append data/quench_${dia}nm.log screen yes
 next            qloop
@@ -115,7 +119,7 @@ dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z v
 comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
 balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
 
-fix		hold all nvt temp 50 50 0.1		#equilibriate cluster at 50K temperature
+fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool temperature
 fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 run		${T1}
 unfix		hold
@@ -126,9 +130,34 @@ variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL
 fix		f8 all ave/atom 1 1 1 x y z
 run		0 pre yes post no
 #unfix		f5
+unfix		f8
+
 variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
 variable        reclusfile string "data/restart.clus_${dia}nm"
 write_data	${clusfile}
 write_restart	${reclusfile}
 write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z
 print		'Approx diameter compute ${diamest} Nanometers'
+
+#--------------------------------------------------------------------------MONTE CARLO
+variable        nevery equal 1000                            #number of attempts for every N steps of fix atom/swap
+variable        nat equal 400
+fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriate cluster at T_cool temperature
+#run            10000
+#unfix          hold
+
+timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
+fix             swap all atom/swap ${nevery} ${nat} 391248 ${myT} ke no types 1 2
+thermo_style    custom step pe ke press temp vol enthalpy density etotal f_swap[1] f    _swap[2]
+run             200000 every 20000 "write_restart data/restart.fixatswp.*"
+unfix           swap
+unfix           hold
+
+#--------------------------------------------------------------------------------OUTPUT
+#variable        diamest equal (bound(all,xmax))*0.2
+variable        clusfile string "data/data.clus_MC_${dia}nm"               #output to save progress and to allow import to future simulations
+variable        reclusfile string "data/restart.clus_MC_${dia}nm"
+write_data      ${clusfile}
+write_restart   ${reclusfile}
+variable        filename string data/molfil_MC_${dia}nm.txt
+write_dump      all custom ${filename} id type mass x y z
