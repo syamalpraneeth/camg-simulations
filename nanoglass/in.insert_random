@@ -1,0 +1,202 @@
+##################################################################
+##IN.DEPOSIT_RANDOM                                             ##
+##Script to deposits prequenched clusters at random locations   ##
+##on substrate. Compute RDFs and voironoi after impaction       ##
+##################################################################
+##Dependencies  :                   				##
+##Influences    : lammpstrj.*, post/*, log.*, *.restart         ##
+##################################################################
+## ver. : 2020-05-27, Syamal Praneeth Chilakalapudi, INT, KIT   ##
+##Author Email    :syamalpraneeth@gmail.com                     ##
+##################################################################
+
+#------------------------------------------------------------------READ DATA AND VARIABLES
+variable        pot string ${args}
+next            args
+variable        e1 string ${args}
+next            args
+variable        e2 string ${args}
+next            args
+variable        x equal ${args}
+next            args
+variable        y equal ${args}
+next            args
+variable        frac equal $y/($x+$y)
+variable        en equal ${args}
+next            args
+variable        eq equal ${args}
+next            args
+variable        siz equal ${args}
+next		args
+variable	subsiz equal ${args}
+variable	inter equal (${eq})/10
+
+variable        th equal ${eq}/20
+variable        clusfile string "data.clus_${siz}nm"
+
+variable	T_cool equal 300
+
+#----------------------------------------------------------------INTITIALIZE
+units           metal
+dimension       3
+atom_style      atomic
+boundary        p p p
+
+#region		box block -100 100 -100 100 -100 100 units box
+region		box block -30 30 -30 30 -30 30 units box
+create_box	4 box
+
+neigh_modify    every 1 delay 0 check yes
+pair_style      eam/fs
+pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}
+mass            1 63.546
+mass            2 91.224
+#min_style       fire
+#minimize        1e-10  1e-10  100  100
+group           cluster empty
+group		interface empty
+group		core empty
+group		cores empty
+group		shell empty
+group           eq empty
+
+variable        BoxL equal lx
+variable        dispX equal random(0,${BoxL},475414)
+variable        dispY equal random(0,${BoxL},4414)
+variable        dispZ equal random(0,${BoxL},47514)
+variable        top equal bound(all,zmax)
+
+#----------------------------------------------------------------COMPUTES AND THERMO
+compute         c2 cluster temp
+compute_modify  c2 dynamic/dof yes extra/dof 0
+thermo_style    custom step pe ke press temp c_c2
+thermo_modify   format float "% .6e"
+thermo_modify	lost warn
+thermo          ${th}
+
+#fix             layrs all property/atom i_lyr
+fix             corint all property/atom i_int
+#fix             dep all property/atom i_depquer
+
+variable	dr equal floor(${eq}/1000)
+#variable	th3 equal 1*${eq}
+#variable	dr equal ${th3}
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd id type x y z vx vy vz i_int #i_depquer
+
+group           cluster id <= 0
+read_data       ${clusfile} add append group cluster #offset 2 0 0 0 0 
+
+#----------------------------------------------------INSERT LOOP
+reset_timestep	0
+variable	at equal 0
+variable        Niter equal 1  #1000
+variable a loop ${Niter}
+label l1
+if "${at}>100" then "print 'too many attempts' append data/insert_unsuccess.log screen yes" "jump in.insert_random l2"
+
+#------------------------------------------------------------------1. introduce cluster
+group           cluster id <= 0
+read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
+#group           substrate subtract all cluster
+#set             group cluster i_lyr 4
+
+variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
+variable        clusdia equal ${clusdiaeval}
+
+#------------------------------------------------------------------2. fixes for cluster
+fix             f5 cluster nve
+#fix		f6 film nve
+
+#------------------------------------------------------------------3. recolour
+variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
+displace_atoms  cluster move 0 0 0 units box
+region          core sphere 0 0 0 ${Rs} side in
+group           core region core
+group           shell subtract cluster core
+group           t1 type 1 3
+group           t2 type 2 4
+group           shellt1 intersect shell t1
+group           shellt2 intersect shell t2
+group           interface union shell interface
+group           cores union core cores
+set             group cores i_int 2
+set             group interface i_int 3
+region		core delete
+
+#------------------------------------------------------------------4. equilibration decisions
+#here a check is made in the nth deposition if n+1th cluster overlaps with any atoms.
+#If yes, a reattempt is made.
+#If not, insertion happens.
+
+variable        dxx   equal  "v_dispX-0.5*v_BoxL"               #x and y coordinates of the n+1th deposited cluster
+variable        dyy   equal  "v_dispY-0.5*v_BoxL"
+variable        dzz   equal  "v_dispZ-0.5*v_BoxL"
+variable        p equal ${dxx}					#coords assigned
+variable        q equal ${dyy}
+variable	r equal ${dzz}
+
+variable        Rq equal ${Rs}+10
+region          query sphere $p $q $r ${Rq} side in
+variable        count equal count(all,query)                   #Check: Are there any cluster atoms in the spherical region around insertion area of n+1th deposited cluster?
+ 
+if "${count}==0" then "print 'no atoms in insertion zone'"
+if "${count}>0" then "print '${count} uneq atoms in insertion zone'" "delete_atoms group cluster" &
+"print 'Unsuccessful deposition interfere with ${count} atoms in zone' append data/insert_unsuccess.log screen yes" "region query delete" "variable at equal ${at}+1" &
+"jump in.insert_random l1"
+
+#------------------------------------------------------------------5. set insertion conditions
+variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
+variable	thet2 equal random(0,360,879869)
+variable	thet3 equal random(0,360,387224)
+variable        zcom equal xcm(cluster,z)
+#variable        zmove   equal ${filmtop}+1.4*${clusdia}-${zcom}	#move cluster 1.4 diameter lengths from surface
+displace_atoms  cluster move $p $q $r units box
+variable k equal xcm(cluster,x)
+variable l equal xcm(cluster,y)
+variable m equal xcm(cluster,z)
+displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
+write_dump all atom dump2.atom
+displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
+write_dump all atom dump3.atom
+displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
+write_dump all atom dump4.atom
+
+#velocity        cluster create 300 74657362 mom yes rot yes		#set temperature of cluster
+#velocity        cluster set 0 0 ${cvel} units box
+
+#-------------------------------------------------------------------DEPOSIT
+#run		${runT}
+
+#variable        filmtop equal bound(film,zmax)
+#write_restart   data/restart.deposit_${Niter}
+print           "Successful run iteration $a of ${Niter} at $p $q $r" append data/insert_success.log screen yes #for data recovery
+#variable	a equal $a+1
+#-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
+group           cluster clear
+region		query delete
+reset_ids
+next		a
+jump in.insert_random l1
+
+label l2
+
+write_restart   data/restart.ng_${e1}${x}${e2}${y}_${siz}nm
+#unfix          layrs
+write_data      data/data.ng_${e1}${x}${e2}${y}_${siz}nm
+
+
+#----------------------------------------------------------GROUPS AND COMPUTES
+group		g1 type 1
+group		g2 type 2
+compute		prdf11 g1 rdf 100
+compute		prdf22 g2 rdf 100
+compute		rdf all rdf 100 #cutoff 3.5
+#compute		vor all voronoi/atom
+
+#label l3
+#----------------------------------------------------------------------INITIATE
+velocity        all create 300 74657362 mom yes rot yes
+
+fix	f all nvt temp 300 300 0.1
+run	20000
+unfix	f
