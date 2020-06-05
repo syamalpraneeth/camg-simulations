@@ -10,11 +10,11 @@
 ##Author Email    :syamalpraneeth@gmail.com                     ##
 ##################################################################
 
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=5
-#SBATCH --time=35:00:00
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=30
+#SBATCH --time=6-00:00:00
 
-#SBATCH --array=3
+#SBATCH --array=6
 #SBATCH --job-name=clus_cuzr
 #SBATCH --output=cluster_%anm.out
 #SBATCH --mail-type=BEGIN
@@ -35,7 +35,7 @@ cd ${SLURM_SUBMIT_DIR}
 #SUBMIT VARIABLES
 #par=($(awk '{print $1}' param))
 var=$SLURM_ARRAY_TASK_ID
-par[0]=CuZr_2.eam.fs   #pair_coeff
+par[0]=Cu-Zr_2.eam.fs  #pair_coeff
 par[1]=Cu              #element1
 par[2]=Zr              #element2
 par[3]=50              #composition x
@@ -53,9 +53,9 @@ echo LAMMPS Dir: $LMP_DIR
 echo Number of Cores: $SLURM_CPUS_PER_TASK
 
 #RUN SETTINGS
-module purge gnu/5.4.0
-module avail gnu8/8.3.0
-module avail intel/19.0.5.281
+#module purge gnu/5.4.0
+#module avail gnu8/8.3.0
+#module avail intel/19.0.5.281
 
 #RUN SETTINGS
 export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
