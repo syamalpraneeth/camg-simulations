@@ -161,7 +161,7 @@ write_dump all atom dump3.atom
 displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
 write_dump all atom dump4.atom
 
-#velocity        cluster create 300 74657362 mom yes rot yes		#set temperature of cluster
+velocity        cluster create ${T_cool} 74657362 mom yes rot yes		#set temperature of cluster
 #velocity        cluster set 0 0 ${cvel} units box
 
 #-------------------------------------------------------------------DEPOSIT
@@ -191,12 +191,81 @@ group		g2 type 2
 compute		prdf11 g1 rdf 100
 compute		prdf22 g2 rdf 100
 compute		rdf all rdf 100 #cutoff 3.5
-#compute		vor all voronoi/atom
+#compute	vor all voronoi/atom
 
 #label l3
-#----------------------------------------------------------------------INITIATE
-velocity        all create 300 74657362 mom yes rot yes
+##----------------------------------------------------------------------INITIATE
+#velocity        all create 300 74657362 mom yes rot yes
 
-fix	f all nvt temp 300 300 0.1
-run	20000
-unfix	f
+#fix             f1 all nvt temp ${T_cool} ${T_cool} 0.1 # iso 1.01325 1.01325 0.1
+##write_dump	all custom data/test2.txt id type x y z
+#variable	end equal ($(step)+${eq})
+#label		lab1
+#run		${inter} start $(step) stop ${end} post no
+#print		"Succeeded step $(step); target step ${end}" append data/#success.initiate_${siz}nm
+#write_restart	data/restart.initiate_${siz}nm
+#if 		"$(step)<${end}" then "jump in.insert_random lab1"
+#unfix           f1
+
+#------------------------------------------------------------------EQUILIBRIATE
+#Equilib at 0 atmosphere = 1.01325*0 bars
+fix             f2 all npt temp ${T_cool} ${T_cool} 0.1 iso 0 0 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab2
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.equilib1_${siz}nm
+write_restart	data/restart.equilib1_${siz}nm
+if 		"$(step)<${end}" then "jump in.insert_compact lab2"
+
+#Relaxation time is in the order of 10^-14s = 10fs = 1000 timesteps
+fix 		r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_0GPa_${siz}nm.rdf mode vector
+fix		v1 all ave/atom 1 1 1 c_vor[*]
+run		0 pre yes post no
+write_dump      all xyz data/sys_0GPa_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+#write_dump      all custom data/dump.voronoi_0GPa_${siz}nm id type x y z c_vor[*]
+
+#----------------------------------------------------------------------COMPRESS
+#Compress to 6 GPa = 60000 bar
+unfix		f2
+unfix           r1
+unfix           v1
+fix		f3 all npt temp ${T_cool} ${T_cool} 0.1 iso 0 60000 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab3
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.compress_${siz}nm
+write_restart	data/restart.compress_${siz}nm
+if 		"$(step)<${end}" then "jump in.insert_random lab3"
+
+#------------------------------------------------------------------EQUILIBRIATE
+#Equilib at 6 GPa = 60000 bar
+unfix		f3
+fix             f4 all npt temp ${T_cool} ${T_cool} 0.1 iso 60000 60000 0.1
+
+variable	end equal ($(step)+${eq})
+label		lab4
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.equilib2_${siz}nm
+write_restart	data/restart.equilib2_${siz}nm
+if 		"$(step)<${end}" then "jump in.insert_random lab4"
+
+#quit
+unfix		f4
+fix             r2 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_6GPa_${siz}nm.rdf mode vector
+#fix             v2 all ave/atom 1 1 1 c_vor[*]
+run             0  pre yes post no
+write_dump      all xyz data/sys_6GPa_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
+#write_dump      all custom data/dump.voronoi_6GPa_${siz}nm id type x y z c_vor[*]
+
+#write_restart   data/restart.ng_${e1}${x}${e2}${y}_${siz}nm
+#unfix		layrs
+#write_data	data/data.ng_${e1}${x}${e2}${y}_${siz}nm
+
+#print		'Settings Summary:'
+#print           'deposit height ${dzz} Angstrom'
+#print		'box z+ height is: ${boxht}'
+#print           'cvel is ${cvel} Angstrom/picosecs'
+#print           'mclus is ${mclus} grams/mol'
+#print           'Energy is ${E} V'
