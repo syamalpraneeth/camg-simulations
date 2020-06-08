@@ -22,13 +22,10 @@ next            args
 variable        y equal ${args}
 next            args
 variable        frac equal $y/($x+$y)
-variable        en equal ${args}
-next            args
 variable        eq equal ${args}
 next            args
 variable        siz equal ${args}
 next		args
-variable	subsiz equal ${args}
 variable	inter equal (${eq})/10
 
 variable        th equal ${eq}/20
@@ -42,8 +39,8 @@ dimension       3
 atom_style      atomic
 boundary        p p p
 
-#region		box block -100 100 -100 100 -100 100 units box
-region		box block -30 30 -30 30 -30 30 units box
+region		box block -100 100 -100 100 -100 100 units box
+#region		box block -30 30 -30 30 -30 30 units box
 create_box	4 box
 
 neigh_modify    every 1 delay 0 check yes
@@ -59,6 +56,7 @@ group		core empty
 group		cores empty
 group		shell empty
 group           eq empty
+region		query sphere 0 0 0 1 units box
 
 variable        BoxL equal lx
 variable        dispX equal random(0,${BoxL},475414)
@@ -81,50 +79,21 @@ fix             corint all property/atom i_int
 variable	dr equal floor(${eq}/1000)
 #variable	th3 equal 1*${eq}
 #variable	dr equal ${th3}
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd id type x y z vx vy vz i_int #i_depquer
+dump            d2 all custom ${dr} data/lammpstrj.ins.ng id type x y z vx vy vz i_int #i_depquer
 
-group           cluster id <= 0
-read_data       ${clusfile} add append group cluster #offset 2 0 0 0 0 
+#group           cluster id <= 0
+#read_data       ${clusfile} add append group cluster #offset 2 0 0 0 0 
 
 #----------------------------------------------------INSERT LOOP
 reset_timestep	0
-variable	at equal 0
-variable        Niter equal 1  #1000
+variable	at equal 0		#number of attempts
+variable        Niter equal 25  #1000
 variable a loop ${Niter}
 label l1
-if "${at}>100" then "print 'too many attempts' append data/insert_unsuccess.log screen yes" "jump in.insert_random l2"
+if "${at}>100" then "print 'too many attempts' append data/insert_unsuccess.log screen yes" "jump in.insert_random l3"
 
-#------------------------------------------------------------------1. introduce cluster
-group           cluster id <= 0
-read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
-#group           substrate subtract all cluster
-#set             group cluster i_lyr 4
-
-variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
-variable        clusdia equal ${clusdiaeval}
-
-#------------------------------------------------------------------2. fixes for cluster
-fix             f5 cluster nve
-#fix		f6 film nve
-
-#------------------------------------------------------------------3. recolour
-variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
-displace_atoms  cluster move 0 0 0 units box
-region          core sphere 0 0 0 ${Rs} side in
-group           core region core
-group           shell subtract cluster core
-group           t1 type 1 3
-group           t2 type 2 4
-group           shellt1 intersect shell t1
-group           shellt2 intersect shell t2
-group           interface union shell interface
-group           cores union core cores
-set             group cores i_int 2
-set             group interface i_int 3
-region		core delete
-
-#------------------------------------------------------------------4. equilibration decisions
-#here a check is made in the nth deposition if n+1th cluster overlaps with any atoms.
+#------------------------------------------------------------------1. insertion decisions
+#here a check is made if nth cluster overlaps with any atoms from previous n-1 insertions.
 #If yes, a reattempt is made.
 #If not, insertion happens.
 
@@ -135,6 +104,9 @@ variable        p equal ${dxx}					#coords assigned
 variable        q equal ${dyy}
 variable	r equal ${dzz}
 
+if "$a==1" then "jump in.insert_random l2" "jump in.insert_random l2" #"run 0"
+#if "$a==1" then "print 'a value is $a so I must jump'" "jump in.insert_random"
+
 variable        Rq equal ${Rs}+10
 region          query sphere $p $q $r ${Rq} side in
 variable        count equal count(all,query)                   #Check: Are there any cluster atoms in the spherical region around insertion area of n+1th deposited cluster?
@@ -143,6 +115,41 @@ if "${count}==0" then "print 'no atoms in insertion zone'"
 if "${count}>0" then "print '${count} uneq atoms in insertion zone'" "delete_atoms group cluster" &
 "print 'Unsuccessful deposition interfere with ${count} atoms in zone' append data/insert_unsuccess.log screen yes" "region query delete" "variable at equal ${at}+1" &
 "jump in.insert_random l1"
+
+label l2
+#------------------------------------------------------------------2. introduce cluster
+group           cluster id <= 0
+read_data       ${clusfile} add append group cluster #offset 2 0 0 0 0   #data file of cluster
+#group           substrate subtract all cluster
+#set             group cluster i_lyr 4
+ 
+variable        clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
+variable        clusdia equal ${clusdiaeval}
+ 
+#------------------------------------------------------------------3. fixes for cluster
+fix             f5 cluster nve
+#fix            f6 film nve
+ 
+#------------------------------------------------------------------4. recolour
+variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
+displace_atoms  cluster move 0 0 0 units box
+variable	pp equal xcm(cluster,x)
+variable	qq equal xcm(cluster,y)
+variable	rr equal xcm(cluster,z)
+region          core sphere ${pp} ${qq} ${rr} ${Rs} side in
+group           core region core
+group           shell subtract cluster core
+group           t1 type 1 3
+group           t2 type 2 4
+group           shellt1 intersect shell t1
+group           shellt2 intersect shell t2
+group           interface union shell interface
+group           cores union core cores
+set             group cores i_int 2
+set             group interface i_int 3
+region          core delete
+
+write_dump all custom dump1.atom id type x y z i_int
 
 #------------------------------------------------------------------5. set insertion conditions
 variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
@@ -155,30 +162,27 @@ variable k equal xcm(cluster,x)
 variable l equal xcm(cluster,y)
 variable m equal xcm(cluster,z)
 displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
-write_dump all atom dump2.atom
+write_dump all custom dump2.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
-write_dump all atom dump3.atom
+write_dump all custom dump3.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
-write_dump all atom dump4.atom
+#write_dump all atom dump4.atom
+write_dump all custom dump4.atom id type x y z i_int
 
 velocity        cluster create ${T_cool} 74657362 mom yes rot yes		#set temperature of cluster
 #velocity        cluster set 0 0 ${cvel} units box
 
-#-------------------------------------------------------------------DEPOSIT
-#run		${runT}
-
-#variable        filmtop equal bound(film,zmax)
 #write_restart   data/restart.deposit_${Niter}
 print           "Successful run iteration $a of ${Niter} at $p $q $r" append data/insert_success.log screen yes #for data recovery
 #variable	a equal $a+1
-#-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
+#-------------------------------------------------------------------CLEAN UP AFTER INSERT
 group           cluster clear
 region		query delete
-reset_ids
+#reset_ids
 next		a
 jump in.insert_random l1
 
-label l2
+label l3
 
 write_restart   data/restart.ng_${e1}${x}${e2}${y}_${siz}nm
 #unfix          layrs
@@ -191,21 +195,23 @@ group		g2 type 2
 compute		prdf11 g1 rdf 100
 compute		prdf22 g2 rdf 100
 compute		rdf all rdf 100 #cutoff 3.5
-#compute	vor all voronoi/atom
+compute	vor all voronoi/atom
 
-#label l3
-##----------------------------------------------------------------------INITIATE
+#----------------------------------------------------------------------INITIATE
 #velocity        all create 300 74657362 mom yes rot yes
 
-#fix             f1 all nvt temp ${T_cool} ${T_cool} 0.1 # iso 1.01325 1.01325 0.1
-##write_dump	all custom data/test2.txt id type x y z
-#variable	end equal ($(step)+${eq})
-#label		lab1
-#run		${inter} start $(step) stop ${end} post no
-#print		"Succeeded step $(step); target step ${end}" append data/#success.initiate_${siz}nm
-#write_restart	data/restart.initiate_${siz}nm
-#if 		"$(step)<${end}" then "jump in.insert_random lab1"
-#unfix           f1
+fix             f1 all nvt temp ${T_cool} ${T_cool} 0.1 # iso 1.01325 1.01325 0.1
+#write_dump	all custom data/test2.txt id type x y z
+#run		5000
+
+#quit
+variable	end equal ($(step)+${eq})
+label		lab1
+run		${inter} start $(step) stop ${end} post no
+print		"Succeeded step $(step); target step ${end}" append data/success.initiate_${siz}nm
+write_restart	data/restart.initiate_${siz}nm
+if 		"$(step)<${end}" then "jump in.insert_random lab1"
+unfix           f1
 
 #------------------------------------------------------------------EQUILIBRIATE
 #Equilib at 0 atmosphere = 1.01325*0 bars
@@ -216,7 +222,7 @@ label		lab2
 run		${inter} start $(step) stop ${end} post no
 print		"Succeeded step $(step); target step ${end}" append data/success.equilib1_${siz}nm
 write_restart	data/restart.equilib1_${siz}nm
-if 		"$(step)<${end}" then "jump in.insert_compact lab2"
+if 		"$(step)<${end}" then "jump in.insert_random lab2"
 
 #Relaxation time is in the order of 10^-14s = 10fs = 1000 timesteps
 fix 		r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_0GPa_${siz}nm.rdf mode vector

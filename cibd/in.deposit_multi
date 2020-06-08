@@ -23,7 +23,10 @@ fix		f6 film nve
 variable        Rs equal (${clusdia}/2)-2 # 10*${siz}-6
 variable        z equal ${filmtop}+${clusdia}
 displace_atoms  cluster move 0 0 ${z} units box
-region          core sphere 0 0 ${z} ${Rs} side in
+variable        pp equal xcm(cluster,x)
+variable        qq equal xcm(cluster,y)
+variable        rr equal xcm(cluster,z)
+region          core sphere ${pp} ${qq} ${rr} ${Rs} side in
 group           core region core
 group           shell subtract cluster core
 group           t1 type 1 3
