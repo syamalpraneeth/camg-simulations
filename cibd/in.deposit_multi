@@ -2,6 +2,8 @@
 if "$a==1" then "variable ftop equal ${top}" "variable filmtop equal ${ftop}"		#Film top keeps changing withe every deposition. To account for growth of film
 print "Works for iter ${itr} and index ${ind}" append     data/pq.log screen yes
 
+#jump in.deposit_multi filend   #for suppressing the actual cluster read and depositto debug
+
 group           cluster id <= 0
 read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
 #group           substrate subtract all cluster
@@ -50,7 +52,7 @@ variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: ve
 
 region          cylinder cylinder z $p $q ${siz} $(zlo) $(zhi)          #define cylinder at area of deposition of cluster
 variable        cnt equal count(film,cylinder)
-if "$a==1" then "variable pillarht equal 0"
+#if "$a==1" then "variable pillarht equal 0"
 if "$a>1 && ${cnt}>0" then "variable ftop equal bound(film,zmax,cylinder)" "variable filmtop equal ${ftop}"
  #evaluate highest point of film below cluster #"variable filmtopprev equal ${filmtop}" "variable filmtop equal ${ftop}"
 
@@ -73,11 +75,11 @@ variable k equal xcm(cluster,x)
 variable l equal xcm(cluster,y)
 variable m equal xcm(cluster,z)
 displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
-write_dump all atom dump2.atom
+#write_dump all custom dump2.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
-write_dump all atom dump3.atom
+#write_dump all custom dump3.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
-write_dump all atom dump4.atom
+#write_dump all custom dump4.atom id type x y z i_int
 
 velocity        cluster create 300 74657362 mom yes rot yes		#set temperature of cluster
 velocity        cluster set 0 0 ${cvel} units box
@@ -100,10 +102,11 @@ print           "Successful run iteration ${ind} at $(step)" append data/deposit
 #-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
 group           film union film cluster
 group           cluster clear
-group           substrate clear
+#group           substrate clear
 
 #region		query delete
 region		cylinder delete
 reset_ids
 
+label filend
 variable	a equal $a+1

@@ -1,62 +1,62 @@
-#variable i	loop 9
-#label	lab1
-#	variable l1	loop 2
-#	label	lab2
-#		variable p=$r
-#		if "a%2==0" then "if "l1==1" then "variable size equal 4-${l1}"" "variable ix equal 1" "variable p equal $p+$r" &
-#		else "variable size equal 4" "variable ix equal 0"
-#		if "${l1}==1" then "variable p equal $p+2*$r"
-
-variable size equal 5
-#variable depcnt equal 1
+variable size equal 3
+#variable BoxL equal ${BoxL}*(-0.5)
 variable ind loop 1 2 #in each row I have two "species"
 label lab1
-	variable row1 loop 1 5
-	variable q equal $r+${qoff}-${BoxL}
-	label lab2
+#jump in.deposit_layer fil	
+	variable row1 loop 1 4
+	variable q equal ${qoff}-${BoxL}/2 #+$r
 	variable crit2 equal ${ind}%2
-	if "${crit2}==0" then "variable p equal $r+${poff}-${BoxL}" else "variable p equal 3*$r+${poff}-${BoxL}"
+	variable size equal 4
+#	if "${crit2}==0" then "variable p equal 3*$r+${poff}-${BoxL}/2" else "variable p equal $r+${poff}-${BoxL}/2"
+	label lab2
+	if "${crit2}==0" then "variable p equal 2*$r+${poff}-${BoxL}/2" else "variable p equal ${poff}-${BoxL}/2"
 		variable col1 loop 1 ${size}
 		label lab3
 		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq.log screen yes 
 			include in.deposit_multi
-			variable p equal $p+3*$r
+#			create_atoms 3 single $p $q ${zval} units box
+			run 0
+			variable p equal $p+4*$r
 			print "Success dep layer ${itr}, pattern ${ind}, row ${row1}, col ${col1} at $(step)" append data/layer_success.log screen yes #for data recovery
 			variable depcnt equal ${depcnt}+1
 			next col1
 			jump in.deposit_layer lab3
-		#variable col1 equal 1
-		variable q equal $q+((3)*$r) #2 instead of 5/3
+		variable q equal $q+(2*sqrt(3)*$r)
 		next row1
 	jump in.deposit_layer lab2
 
 	#run ${T2}
 	run 0
-#	print "${ind}"
 
-	variable q equal $q+(1+(5/3))*$r+${qoff}
-	variable crit3 equal ${ind}%2
-	if "${crit3}==0" then "variable size equal 3" #4
+#jump in.deposit_layer filend
+label fil
+
 	variable row2 loop 1 4
+	variable q equal (sqrt(3))*$r+${qoff}-${BoxL}/2 #+$r
+	variable crit3 equal ${ind}%2
+	if "${crit3}==0" then "variable size equal 3"
+#       if "${crit3}==0" then "variable p equal 4*$r+${poff}-${BoxL}/2" else "variable p equal 2*$r+${poff}-${BoxL}/2"
 	label lab4
-	if "${ind}==1" then "variable p equal 2*$r+${poff}-${BoxL}" else "variable p equal 4*$r+${poff}-${BoxL}"
+	if "${crit3}==0" then "variable p equal 3*$r+${poff}-${BoxL}/2" else "variable p equal $r+${poff}-${BoxL}/2"
 		variable col2 loop 1 ${size}
 		label lab5
 		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq.log screen yes 
-			variable p equal $p+3*$r
 			include in.deposit_multi
-			print "Success dep layer ${itr}, pattern ${ind}, row2 ${row2}, col2 ${col2} at $(step)" append data/layer_success.log screen yes #for data recovery
+#			create_atoms 4 single $p $q ${zval} units box
+			run 0
+			variable p equal $p+4*$r
+			print "Success dep layer ${itr}, pattern ${ind}, row ${row2}, col2 ${col2} at $(step)" append data/layer_success.log screen yes #for data recovery
 			variable depcnt equal ${depcnt}+1
 			next col2
 			jump in.deposit_layer lab5
-		variable q equal $q+((3)*$r) #3 instead of 5/3
+		variable q equal $q+(2*sqrt(3)*$r)
 		next row2
 	jump in.deposit_layer lab4
 	
 	run 0
 #	run ${T2}
-	
+
+label filend	
 next ind
 jump in.deposit_layer lab1
 print "Success dep full layer ${itr} of total deposits ${depcnt} at $(step)" append data/layer_success.log screen yes #for data recovery
-
