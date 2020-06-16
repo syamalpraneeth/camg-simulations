@@ -149,7 +149,7 @@ set             group cores i_int 2
 set             group interface i_int 3
 region          core delete
 
-write_dump all custom dump1.atom id type x y z i_int
+#write_dump all custom dump1.atom id type x y z i_int
 
 #------------------------------------------------------------------5. set insertion conditions
 variable	thet1 equal random(0,360,458784)			#evaluate 3 Euler angles
@@ -162,12 +162,11 @@ variable k equal xcm(cluster,x)
 variable l equal xcm(cluster,y)
 variable m equal xcm(cluster,z)
 displace_atoms	cluster rotate $k $l $m 1 0 0 ${thet1}			#rotate cluster by 3 Euler Angles
-write_dump all custom dump2.atom id type x y z i_int
+#write_dump all custom dump2.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 1 0 ${thet2}
-write_dump all custom dump3.atom id type x y z i_int
+#write_dump all custom dump3.atom id type x y z i_int
 displace_atoms  cluster rotate $k $l $m 0 0 1 ${thet3}
-#write_dump all atom dump4.atom
-write_dump all custom dump4.atom id type x y z i_int
+#write_dump all custom dump4.atom id type x y z i_int
 
 velocity        cluster create ${T_cool} 74657362 mom yes rot yes		#set temperature of cluster
 #velocity        cluster set 0 0 ${cvel} units box
