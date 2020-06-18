@@ -11,15 +11,15 @@
 ##################################################################
 
 #---------------------------------------------------INT-NANO
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=30
-#SBATCH --time=7-00:00:00
-#SBATCH --partition=gpu
+##SBATCH --nodes=4
+##SBATCH --ntasks-per-node=30
+##SBATCH --time=7-00:00:00
+##SBATCH --partition=gpu
 
-##SBATCH --nodes=1
-##SBATCH --ntasks-per-node=10
-##SBATCH --time=01:00:00
-##SBATCH --partition=develop
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=60
+#SBATCH --time=10-00:00:00
+#SBATCH --partition=bionano
 #----------------------------------------------------FH2
 
 #SBATCH --array=50 #,250,500
@@ -33,8 +33,8 @@
 cd ${SLURM_SUBMIT_DIR}
 
 #COPY FILES FROM SOURCE
-cp ~/Documents/origin/nanoglass/in.cibd_multi .
-cp -r ~/Documents/origin/nanoglass/post .
+cp ~/Documents/origin/cibd/in.* .
+cp -r ~/Documents/origin/cibd/post .
 [[ -d "data" ]] || mkdir data                   #make data dir if it doesn't exist
 
 #SUBMIT VARIABLES
@@ -59,7 +59,7 @@ date
 echo Nodes: $SLURM_JOB_NODELIST #Prints all the nodes you requested
 echo LAMMPS Dir: $LMP_DIR
 echo Number of Cores: $SLURM_NTASKS
-echo Git version of code: git --git-dir=$GIT_DIR rev-parse --short HEAD
+echo Git version of code: $(git --git-dir=$GIT_DIR rev-parse --short HEAD)
 
 #RUN SETTINGS
 #module purge
@@ -68,6 +68,6 @@ echo Git version of code: git --git-dir=$GIT_DIR rev-parse --short HEAD
 
 #export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
 #srun --mpi=list
-srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${v}nm
+srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${v}nm_${arrvar}eV
 #$LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.ng      #script for local run
 exit $?
