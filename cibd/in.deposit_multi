@@ -96,7 +96,7 @@ print           'Energy is ${E} eV'
 run		${runT}
 
 #variable        filmtop equal bound(film,zmax)
-write_restart   data/restart.deposit_${ind}
+#write_restart   data/restart.deposit_${ind}
 print           "Successful run iteration ${ind} at $(step)" append data/deposit_success.log screen yes #for data recovery
 
 #-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT

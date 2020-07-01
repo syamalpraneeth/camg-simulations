@@ -24,7 +24,8 @@ variable        dia equal ${args}
 next            args
 variable        T1 equal ${args}
 next            args
-variable        T2 equal ${args}
+variable        quench_ramp equal ${args}
+#variable        T2 equal ${args}
 
 variable        th equal ${T1}/10			#thermo and dump values evaluated
 variable        df equal ${T1}/20
@@ -34,7 +35,8 @@ variable	s equal (${dia}/2+1)*10			#evalate box side based on cluster size
 variable	R equal (${dia}/2)*10 #*(${lat})
 
 variable	T_hot equal 2000
-variable	T_cool equal 50
+variable	T_cool equal 300
+variable        T2 equal (${T_hot}-${T_cool})*((10^3)/(${quench_ramp})) #0.1K/ps quench rate at 1 atm pressure
 
 #--------------------------------------------------------------------------------INTIALISE
 units           metal					#fundamental LAMMPS and MD conditions initialization
@@ -123,6 +125,7 @@ fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool 
 fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 run		${T1}
 unfix		hold
+unfix		center
 
 #--------------------------------------------------------------------------------FIXES
 #fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
@@ -147,11 +150,12 @@ fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriat
 #unfix          hold
 
 timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
-fix             swap all atom/swap ${nevery} ${nat} 391248 ${myT} ke no types 1 2
+fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_cool} ke no types 1 2
 thermo_style    custom step pe ke press temp vol enthalpy density etotal f_swap[1] f_swap[2]
-run             200000 every 20000 "write_restart data/restart.fixatswp.*"
+run             ${T1} every ${th} "write_restart data/restart.fixatswp.*"
 unfix           swap
 unfix           hold
+thermo_style    custom step pe ke press temp vol enthalpy density etotal
 
 #--------------------------------------------------------------------------------OUTPUT
 #variable        diamest equal (bound(all,xmax))*0.2
