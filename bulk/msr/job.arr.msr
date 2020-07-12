@@ -1,0 +1,80 @@
+#!/bin/sh
+
+##################################################################
+##JOB.ARR.MSR	                                                ##
+##Submit an array of jobs to make melt spun ribbon of NiNb      ##
+##Dependencies  : ~/Documents/dev/clusters/bulk/msr		##
+##Influences    :                                               ##
+##################################################################
+## ver. : 2020-07, Syamal Praneeth Chilakalapudi, KIT, INT  	##
+##Author Email    :syamalpraneeth@gmail.com                     ##
+##################################################################
+
+#---------------------------------------------------INT-NANO
+##SBATCH --nodes=4
+##SBATCH --ntasks-per-node=30
+##SBATCH --time=7-00:00:00
+##SBATCH --partition=gpu
+ 
+##SBATCH --nodes=2
+##SBATCH --ntasks-per-node=64
+##SBATCH --time=10-00:00:00
+##SBATCH --partition=bionano
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=30
+#SBATCH --time=03:00:00
+#SBATCH --partition=short
+
+#----------------------------------------------------FH2
+
+
+
+#SBATCH --array=11 #choosing this to get approx same number of atoms as in nanoglass counterpart
+#SBATCH --job-name=msr_cuzr
+#SBATCH --output=msr_cuzr%anm.out
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=syamal.chilakalapudi@kit.edu
+
+#CHANGE WORKING DIRECTORY
+cd ${SLURM_SUBMIT_DIR}
+
+#COPY FILES FROM SOURCE
+cp ~/Documents/origin/bulk/msr/in.* .
+cp -r ~/Documents/origin/bulk/msr/post .
+[[ -d "data" ]] || mkdir data			#make data dir if it doesn't exist
+
+#SUBMIT VARIABLES
+#par=($(awk '{print $1}' param))
+var=$SLURM_ARRAY_TASK_ID
+par[0]=Cu-Zr_2.eam.fs   #pair_coeff
+par[1]=Cu              #element1
+par[2]=Zr              #element2
+par[3]=50              #composition x
+par[4]=50              #composition y
+par[5]=${var}	       #dimensions of box (nm)
+par[6]=200 #0000       #equilibriation duration 2 ns with timestep 0.001
+par[7]=500 #0.01		#quench rate 0.01 K/ps. Leave as 500 for test
+par[8]=500 #0.05		#quench rate 0.05 K/ps. Leave as 500 for test
+
+#SET LAMMPS DIRECTORY AND INITIAL OUTPUTS
+LMP_DIR=~/local/lammps/src/lmp_mpi
+GIT_DIR=/home/ws/mj0054/Documents/origin/.git           #int-nano
+IN_FIL=in.glass
+date
+echo Nodes: $SLURM_JOB_NODELIST #Prints all the nodes you requested
+echo LAMMPS Dir: $LMP_DIR
+echo Number of Cores: $SLURM_CPUS_PER_TASK
+echo Git version of code: $(git --git-dir=$GIT_DIR rev-parse --short HEAD)
+
+#RUN SETTINGS
+#module purge
+#module load compiler/intel/18.0
+#module load mpi/impi/2018
+
+export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
+srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.msr_${var}nm
+
+exit $?
