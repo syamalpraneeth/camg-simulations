@@ -46,6 +46,25 @@ variable        t1 equal ${T1}/10
 variable        t equal ${T2}/10
 variable        ht_inter equal (${ht}/10)
 
+#region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
+#variable 	Rs equal $R-2
+#group           cluster region sph
+#region          core sphere 0 0 0 ${Rs} side in units box
+#group           core region core
+#group           shell subtract cluster core
+#group           e1 type 1 3 
+#group           e2 type 2 4 
+#group           se1 intersect shell e1
+#group           se2 intersect shell e2
+#group           ce1 intersect core e1
+#group           ce2 intersect core e2
+#variable        rattot equal count(t1)/(count(t1)+count(t2))
+#variable        ratshell equal count(shellt1)/(count(shellt1)+count(shellt2))
+#variable	ce1 equal count(ce1)/(count(ce1)+count(ce2))
+#variable	se1 equal count(se1)/(count(se1)+count(se2))
+#variable	ce2 equal count(ce2)/(count(ce1)+count(ce2))
+#variable	se2 equal count(se2)/(count(se1)+count(se2))
+
 #--------------------------------------------------------------------------------INTIALISE
 units           metal					#fundamental LAMMPS and MD conditions initialization
 dimension       3
@@ -56,8 +75,7 @@ lattice		bcc ${lat}
 region		sbox block -$s $s -$s $s -$s $s units box
 region          box block -$s $s -$s $s -$s $s units box
 
-create_box 	4 sbox
-#4 atom types even though binary to support depositing a coloured cluster 
+create_box 	4 sbox  #4 atom types even though binary glass to support jobscripts 
 create_atoms    1 region box				#define simulation box
 
 set             region box type/fraction 2 ${frac} 3456 #randomly change atoms to fit composition
@@ -67,13 +85,34 @@ newton		on
 pair_style	eam/fs					#EAM potentials best for metallic systems
 pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files to fit with CIBD deposited cluster tracking feature with atom ID offsets
 
+#----------------------------------------------------------------------------------GROUPS
+region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
+variable        Rs equal $R-2
+group           cluster region sph 
+region          core sphere 0 0 0 ${Rs} side in units box 
+group           core region core
+group           shell subtract cluster core
+group           e1 type 1 3 
+group           e2 type 2 4 
+group           se1 intersect shell e1
+group           se2 intersect shell e2
+group           ce1 intersect core e1
+group           ce2 intersect core e2
+#variable        rattot equal count(t1)/(count(t1)+count(t2))
+##variable        ratshell equal count(shellt1)/(count(shellt1)+count(shellt2))
+variable        ce1 equal count(ce1)/(count(ce1)+count(ce2))
+variable        se1 equal count(se1)/(count(se1)+count(se2))
+variable        ce2 equal count(ce2)/(count(ce1)+count(ce2))
+variable        se2 equal count(se2)/(count(se1)+count(se2))
+
 #--------------------------------------------------------------------------------COMPUTES
 compute         c1 all temp
 #compute		c2 all xrd 1.5406 ${e1} ${e2} 2Theta 20 180 c 2 2 2 LP 1 echo #reduce the size of the computation by a factor of 2^3.
 compute_modify  c1 dynamic/dof yes extra/dof 0		#It seemed like a dynamic evaluation was better
 
+
 #--------------------------------------------------------------------------------THERMO
-thermo_style    custom step pe ke press temp
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
 thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo          ${th}
@@ -116,7 +155,7 @@ unfix           quench
 #region		sph sphere 0 0 0 ${R} side out units box
 #region		del intersect 2 sph box		#LAMMPS can only delete bounded regions
 
-region		sph sphere 0 0 0 ${R} side in units box				#define a spherical region of intended radius to be cut out
+#region		sph sphere 0 0 0 ${R} side in units box				#define a spherical region of intended radius to be cut out
 group		keep region sph
 group		del subtract all keep						#Think of Venn Diagram subtraction
 delete_atoms	group del							#cut out a sphere to make a spherical cluster
@@ -144,6 +183,7 @@ unfix		center
 
 #-------------------------------------------------------------------------------HEATING TO ANNEAL
 fix             heat all nvt temp ${T_cool} ${T_anneal} 0.1
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 variable        start_step equal $(step)
 variable        tstop equal $(step)+${ht}
 variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
@@ -154,6 +194,7 @@ print           "Succeeded step $(step); target step ${tstop}" append data/succe
 next		qloop
 jump		in.cluster_anneal l3
 unfix		heat
+unfix           center
 
 #--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
 #fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
@@ -174,19 +215,22 @@ print		'Approx diameter compute ${diamest} Nanometers'
 variable        nevery equal 100                            #number of attempts for every N steps of fix atom/swap
 variable        nat equal 400
 fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriate cluster at T_cool temperature
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 #run            10000
 #unfix          hold
 
 timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
 fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_cool} ke no types 1 2
-thermo_style    custom step pe ke press temp vol enthalpy density etotal f_swap[1] f_swap[2]
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
 run             ${T1} every ${th} "write_restart data/restart.fixatswp.*"
 unfix           swap
 unfix           hold
-thermo_style    custom step pe ke press temp vol enthalpy density etotal
+unfix           center
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
 
 #-------------------------------------------------------------------------------COOLING TO END ANNEAL PROCESS
 fix             cool all nvt temp ${T_anneal} ${T_cool} 0.1 
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 variable        start_step equal $(step)
 variable        tstop equal $(step)+${ht}
 variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
@@ -197,6 +241,7 @@ print           "Succeeded step $(step); target step ${tstop}" append data/succe
 next            qloop
 jump            in.cluster_anneal l4
 unfix           cool
+unfix           center
 
 #------------------------------------------------------------------------EQUILIBRATE
 fix             hold all nvt temp ${T_cool} ${T_cool} 0.1               #equilibriate cluster at T_cool temperature
