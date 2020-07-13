@@ -1,12 +1,12 @@
 #!/bin/sh
 
 ##################################################################
-##JOB.ARR.CLUSTER                                               ##
-##Submit an array of jobs to make clusters of varying dia       ##
-##Dependencies  : ~/Documents/dev/clusters/bulk-derived         ##
+##JOB.ARR.MSR	                                                ##
+##Submit an array of jobs to make melt spun ribbon of NiNb      ##
+##Dependencies  : ~/Documents/dev/clusters/bulk/msr		##
 ##Influences    :                                               ##
 ##################################################################
-## ver. : 2019-09-04, Syamal Praneeth Chilakalapudi, KIT, INT   ##
+## ver. : 2020-07, Syamal Praneeth Chilakalapudi, KIT, INT  	##
 ##Author Email    :syamalpraneeth@gmail.com                     ##
 ##################################################################
 
@@ -16,16 +16,23 @@
 ##SBATCH --time=7-00:00:00
 ##SBATCH --partition=gpu
  
+##SBATCH --nodes=2
+##SBATCH --ntasks-per-node=64
+##SBATCH --time=10-00:00:00
+##SBATCH --partition=bionano
+
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=64
-#SBATCH --time=10-00:00:00
-#SBATCH --partition=bionano
+#SBATCH --ntasks-per-node=30
+#SBATCH --time=03:00:00
+#SBATCH --partition=short
 
 #----------------------------------------------------FH2
 
-#SBATCH --array=6
-#SBATCH --job-name=clus_cuzr
-#SBATCH --output=cluster_%anm.out
+
+
+#SBATCH --array=11 #choosing this to get approx same number of atoms as in nanoglass counterpart
+#SBATCH --job-name=msr_cuzr
+#SBATCH --output=msr_cuzr%anm.out
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
@@ -35,27 +42,27 @@
 cd ${SLURM_SUBMIT_DIR}
 
 #COPY FILES FROM SOURCE
-cp ~/Documents/origin/clusters/in.* .
-cp -r ~/Documents/origin/post .
-[[ -d "data" ]] || mkdir data                   #make data dir if it doesn't exist
+cp ~/Documents/origin/bulk/msr/in.* .
+cp -r ~/Documents/origin/bulk/msr/post .
+[[ -d "data" ]] || mkdir data			#make data dir if it doesn't exist
 
 #SUBMIT VARIABLES
 #par=($(awk '{print $1}' param))
 var=$SLURM_ARRAY_TASK_ID
-par[0]=Cu-Zr_2.eam.fs  #pair_coeff
+par[0]=Cu-Zr_2.eam.fs   #pair_coeff
 par[1]=Cu              #element1
 par[2]=Zr              #element2
 par[3]=50              #composition x
 par[4]=50              #composition y
-par[5]=${var}          #diameter of cluster (nm)
-par[6]=2000		#2000000       #equilibriation duration
-par[7]=500		#0.1           #quench rate 0.01 K/ps. Leave as 500 for test
-name="clus_${par[1]}${par[3]}${par[2]}${par[4]}"
+par[5]=${var}	       #dimensions of box (nm)
+par[6]=200 #0000       #equilibriation duration 2 ns with timestep 0.001
+par[7]=500 #0.01		#quench rate 0.01 K/ps. Leave as 500 for test
+par[8]=500 #0.05		#quench rate 0.05 K/ps. Leave as 500 for test
 
 #SET LAMMPS DIRECTORY AND INITIAL OUTPUTS
 LMP_DIR=~/local/lammps/src/lmp_mpi
 GIT_DIR=/home/ws/mj0054/Documents/origin/.git           #int-nano
-IN_FIL=in.cluster
+IN_FIL=in.glass
 date
 echo Nodes: $SLURM_JOB_NODELIST #Prints all the nodes you requested
 echo LAMMPS Dir: $LMP_DIR
@@ -63,12 +70,11 @@ echo Number of Cores: $SLURM_CPUS_PER_TASK
 echo Git version of code: $(git --git-dir=$GIT_DIR rev-parse --short HEAD)
 
 #RUN SETTINGS
-#module purge gnu/5.4.0
-#module avail gnu8/8.3.0
-#module avail intel/19.0.5.281
+#module purge
+#module load compiler/intel/18.0
+#module load mpi/impi/2018
 
-#RUN SETTINGS
 export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
-#srun $LMP_DIR -i in.cluster -v args "${par[@]}" -l log.cluster_${var}nm
-srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cluster_${var}nm
+srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.msr_${var}nm
+
 exit $?

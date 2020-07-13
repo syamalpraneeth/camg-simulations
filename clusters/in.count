@@ -1,0 +1,73 @@
+##################################################################
+##								##                               
+##								##
+##Dependencies	:						##
+##Influences	:						##
+##################################################################
+## ver.	: 2019--, Syamal Praneeth Chilakalapudi, KIT, INT	##                            
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#--------------------------------------------------------------------------------INTIALISE
+units           metal                                   #fundamental LAMMPS and MD conditions initialization
+dimension       3
+atom_style      atomic
+boundary        p p p 
+
+#processors	* * *
+read_data	data/data.clus_6nm				#read 800 atoms cluster
+
+neigh_modify    every 20 delay 0 check yes
+pair_style      eam/fs
+pair_coeff      * * Cu-Zr_2.eam.fs Cu Zr Cu Zr
+
+#shell		[[ -d "data" ]] || mkdir data 		#added this incase Penghui doesn't copy this part of the script from the submitting script
+
+#-----------------------------------------------------------------------THERMO
+thermo_style    custom step pe ke press temp vol enthalpy density etotal
+thermo_modify   format float "% .6e"
+thermo          100
+
+#---------------------------------------------------------------------------------compute concs
+variable	Rs equal 35-5
+variable	Ro equal 35+10
+#region		core sph 0 0 0 ${Rs} side in units box
+#region		coreout sph 0 0 0 ${Rs} side out units box
+region		tot sphere 0 0 0 ${Ro} side in units box
+
+#group		core region core
+#group		coreout region coreout
+#group		shell 
+
+group		cluster region tot
+region          core sphere 0 0 0 ${Rs} side in
+group           core region core
+group           shell subtract cluster core
+group           t1 type 1 3
+group           t2 type 2 4
+group           shellt1 intersect shell t1
+group           shellt2 intersect shell t2
+group		coret1 intersect core t1
+group		coret2 intersect core t2
+
+#group           interface union shell interface
+#group           cores union core cores
+#set             group cores i_int 2
+#set             group interface i_int 3
+
+variable	rattot equal count(t1)/count(t2) #/(count(t1)+count(t2))
+variable	ratshell equal count(shellt1)/count(shellt2) #/(count(shellt1)+count(shellt2))
+variable        ratcore equal count(coret1)/count(coret2) #(count(coret1)+count(coret2))
+variable	cutot equal count(t1)
+variable	zrtot equal count(t2)
+variable	cortot equal count(coret1)+count(coret2)
+variable	sheltot equal count(shellt1)+count(shellt2)
+variable	core equal count(core)
+variable	shell equal count(shell)
+variable	tot equal count(all,tot)
+
+print		"cu tot ${cutot}, zr tot ${zrtot}"
+print		"core tot ${cortot}, shell tot ${sheltot}"
+print		"alt core tot ${core}, alt shell ${shell}, alt tot ${tot}"
+print		"tot rat ${rattot}, shell rat ${ratshell}, core rat ${ratcore}"
+
