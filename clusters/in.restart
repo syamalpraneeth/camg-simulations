@@ -1,0 +1,210 @@
+##################################################################
+##IN.CLUSTER_ANNEAL						##
+##Prepare amorphous cluster from glass bulk and anneal it	##
+##Dependencies	: none						##
+##Influences: /data						##
+##################################################################
+## ver. : 2019-09-20, Syamal Praneeth Chilakalapudi, KIT, INT	##
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+#--------------------------------------------------------------VARIABLES FROM COMMAND LINE
+variable        pot string ${args}
+next            args
+variable        e1 string ${args}
+next            args
+variable        e2 string ${args}
+next            args
+variable        x equal ${args}
+next            args
+variable        y equal ${args}
+variable        frac equal $y/($x+$y)
+next            args
+variable        dia equal ${args}
+next            args
+variable        T1 equal ${args}
+next            args
+variable        quench_ramp equal ${args}
+next		args
+variable	anneal_ramp equal ${args}			#0.05/ps ramp rate
+#variable        T2 equal ${args}
+
+variable        th equal ${T1}/10			#thermo and dump values evaluated
+variable        df equal ${T1}/20
+
+variable	lat equal 3.6				#lattice parameter to define spacings
+variable	s equal (${dia}/2+1)*10			#evalate box side based on cluster size
+variable	R equal (${dia}/2)*10 #*(${lat})
+
+variable	T_hot equal 2000
+variable	T_cool equal 300
+variable	T_anneal equal 500
+variable        T2 equal (${T_hot}-${T_cool})*((10^3)/(${quench_ramp})) #0.1K/ps quench rate at 1 atm pressure
+variable	ht equal (${T_anneal}-${T_cool})*((10^3)/(${anneal_ramp})) #0.5K/ps quench rate at 1 atm pressure
+
+variable        t1 equal ${T1}/10
+variable        t equal ${T2}/10
+variable        ht_inter equal (${ht}/10)
+
+#--------------------------------------------------------------------------------INTIALISE
+units           metal					#fundamental LAMMPS and MD conditions initialization
+dimension       3
+atom_style      atomic
+boundary        p p p
+lattice		bcc ${lat}
+
+#region		sbox block -$s $s -$s $s -$s $s units box
+#region          box block -$s $s -$s $s -$s $s units box
+
+#create_box 	4 sbox  #4 atom types even though binary glass to support jobscripts 
+#create_atoms    1 region box				#define simulation box
+
+#set             region box type/fraction 2 ${frac} 3456 #randomly change atoms to fit composition
+#
+#
+
+read_data    data.clus_3nm
+
+neigh_modify	every 1 delay 0 check yes
+
+newton		on
+pair_style	eam/fs					#EAM potentials best for metallic systems
+#pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files to fit with CIBD deposited cluster tracking feature with atom ID offsets
+pair_coeff      * * Cu-Zr_2.eam.fs Cu Zr
+
+#----------------------------------------------------------------------------------GROUPS
+region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
+variable        Rs equal $R-2
+group           cluster region sph 
+region          core sphere 0 0 0 ${Rs} side in units box 
+group           core region core
+group           shell subtract cluster core
+group           e1 type 1 3 
+group           e2 type 2 4 
+group           se1 intersect shell e1
+group           se2 intersect shell e2
+group           ce1 intersect core e1
+group           ce2 intersect core e2
+#variable        rattot equal count(t1)/(count(t1)+count(t2))
+##variable        ratshell equal count(shellt1)/(count(shellt1)+count(shellt2))
+variable        ce1 equal count(ce1)/(count(ce1)+count(ce2))
+variable        se1 equal count(se1)/(count(se1)+count(se2))
+variable        ce2 equal count(ce2)/(count(ce1)+count(ce2))
+variable        se2 equal count(se2)/(count(se1)+count(se2))
+
+#--------------------------------------------------------------------------------COMPUTES
+compute         c1 all temp
+#compute		c2 all xrd 1.5406 ${e1} ${e2} 2Theta 20 180 c 2 2 2 LP 1 echo #reduce the size of the computation by a factor of 2^3.
+compute_modify  c1 dynamic/dof yes extra/dof 0		#It seemed like a dynamic evaluation was better
+
+
+#--------------------------------------------------------------------------------THERMO
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
+thermo_modify   format float "% .6e"
+thermo_modify   temp c1
+thermo          ${th}
+timestep        0.0010					#standard timestep 1fs for metallic systems
+
+#--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
+#comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
+#balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
+
+fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool temperature
+fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+variable        tstop equal $(step)+${T1}
+variable        start_step equal $(step)
+variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
+label           l2
+run		${t1} start ${start_step} stop ${tstop} post no
+write_restart   data/restart.equilib_1_${dia}nm
+print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_1_${dia}nm
+next            qloop
+jump            in.cluster_anneal l2
+unfix		hold
+unfix		center
+
+#-------------------------------------------------------------------------------HEATING TO ANNEAL
+fix             heat all nvt temp ${T_cool} ${T_anneal} 0.1
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+variable        start_step equal $(step)
+variable        tstop equal $(step)+${ht}
+variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
+label		l3
+run             ${ht_inter} start ${start_step} stop ${tstop} post no
+write_restart   data/restart.heat_${dia}nm
+print           "Succeeded step $(step); target step ${tstop}" append data/success.heat_${dia}nm
+next		qloop
+jump		in.cluster_anneal l3
+unfix		heat
+unfix           center
+
+#--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
+#fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
+variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
+fix		f8 all ave/atom 1 1 1 x y z
+run		0 pre yes post no
+#unfix		f5
+unfix		f8
+
+variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
+variable        reclusfile string "data/restart.clus_${dia}nm"
+write_data	${clusfile}
+write_restart	${reclusfile}
+write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z
+print		'Approx diameter compute ${diamest} Nanometers'
+
+#--------------------------------------------------------------------------MONTE CARLO
+variable        nevery equal 100                            #number of attempts for every N steps of fix atom/swap
+variable        nat equal 400
+fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriate cluster at T_cool temperature
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+#run            10000
+#unfix          hold
+
+timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
+fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_cool} ke no types 1 2
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
+run             ${T1} every ${th} "write_restart data/restart.fixatswp.*"
+unfix           swap
+unfix           hold
+unfix           center
+thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
+
+#-------------------------------------------------------------------------------COOLING TO END ANNEAL PROCESS
+fix             cool all nvt temp ${T_anneal} ${T_cool} 0.1 
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+variable        start_step equal $(step)
+variable        tstop equal $(step)+${ht}
+variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
+label           l4
+run             ${ht_inter} start ${start_step} stop ${tstop} post no
+write_restart   data/restart.cool_${dia}nm
+print           "Succeeded step $(step); target step ${tstop}" append data/success.cool_${dia}nm
+next            qloop
+jump            in.cluster_anneal l4
+unfix           cool
+unfix           center
+
+#------------------------------------------------------------------------EQUILIBRATE
+fix             hold all nvt temp ${T_cool} ${T_cool} 0.1               #equilibriate cluster at T_cool temperature
+fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+variable        start_step equal $(step)
+variable        tstop equal $(step)+${T1}
+variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
+label           l5
+run             ${t1} start ${start_step} stop ${tstop} post no
+write_restart   data/restart.equilib_1_${dia}nm
+print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_2_${dia}nm
+next            qloop
+jump            in.cluster_anneal l5
+unfix           hold
+unfix           center
+
+#--------------------------------------------------------------------------------OUTPUT
+#variable        diamest equal (bound(all,xmax))*0.2
+variable        clusfile string "data/data.clus_MC_${dia}nm"               #output to save progress and to allow import to future simulations
+variable        reclusfile string "data/restart.clus_MC_${dia}nm"
+write_data      ${clusfile}
+write_restart   ${reclusfile}
+variable        filename string data/molfil_MC_${dia}nm.txt
+write_dump      all custom ${filename} id type mass x y z
