@@ -121,8 +121,8 @@ delete_atoms	group del							#cut out a sphere to make a spherical cluster
 dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz		#save atom trajectories/timestep for visualisation
 
 #--------------------------------------------------------------------------------BALANCE
-comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
-balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
+#comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
+#balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
 
 fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool temperature
 fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data

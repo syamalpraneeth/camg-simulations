@@ -88,10 +88,13 @@ pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files 
 #----------------------------------------------------------------------------------GROUPS
 region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
 variable        Rs equal $R-2
-group           cluster region sph 
+group           cluster dynamic all region sph 
 region          core sphere 0 0 0 ${Rs} side in units box 
-group           core region core
-group           shell subtract cluster core
+group           core dynamic all region core
+region          core2 sphere 0 0 0 ${Rs} side out units box
+region		shell intersect 2 cluster core2
+#group           shell subtract cluster core
+group		shell dynamic all region shell
 group           e1 type 1 3 
 group           e2 type 2 4 
 group           se1 intersect shell e1
@@ -164,11 +167,11 @@ delete_atoms	group del							#cut out a sphere to make a spherical cluster
 dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz		#save atom trajectories/timestep for visualisation
 
 #--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
-comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
-balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
+#comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
+#balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
 
-fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool temperature
 fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+fix		hold all nvt temp ${T_cool} ${T_cool} 0.1		#equilibriate cluster at T_cool temperature
 variable        tstop equal $(step)+${T1}
 variable        start_step equal $(step)
 variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
