@@ -51,8 +51,8 @@ pair_style	eam/fs
 pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}
 mass		1 63.546
 mass		2 91.224
-min_style	fire
-minimize	1e-10  1e-10  100  100
+#min_style	fire
+#minimize	1e-10  1e-10  100  100
 group		cluster empty
 
 #----------------------------------------------------------------COMPUTES AND THERMO
@@ -60,7 +60,10 @@ compute         c1 all temp
 compute_modify  c1 dynamic/dof yes extra/dof 0
 compute         c2 cluster temp
 compute_modify  c2 dynamic/dof yes extra/dof 0
-thermo_style    custom step pe ke press temp c_c2
+variable	a equal bound(cluster,zmax)-bound(cluster,zmin)
+variable	b equal (bound(cluster,xmax)-bound(cluster,xmin)+bound(cluster,ymax)-bound(cluster,ymin))/2
+variable	asp equal v_a/v_b
+thermo_style    custom step pe ke press temp c_c2 v_a v_b v_asp
 thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo_modify	lost warn
@@ -138,12 +141,12 @@ print		'total runtime ${runT} will be split into 3*fly_T + T1-2*(fly_T) for visu
 
 #-------------------------------------------------------------------DEPOSIT
 variable	dr equal "floor(v_flyT/15)"
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
-variable	Tdep equal "floor(3*(v_flyT))"
-run		${Tdep}
-undump		d2
+#dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
+#variable	Tdep equal "floor(3*(v_flyT))"
+#run		${Tdep}
+#undump		d2
 dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
-variable	Trest equal "floor(v_T1-2*(v_flyT))"
+variable	Trest equal "floor(v_T1+v_flyT)"
 run		${Trest}
 
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
@@ -159,10 +162,8 @@ write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
 #run		10000
 
 #----------------------------------------------------------GROUPS AND COMPUTES
-if "${en} == 50" then "fix             r3 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
-
-group		clus type 3 4
-compute		vor clus voronoi/atom
+#group		clus type 3 4
+#compute		vor clus voronoi/atom
 
 compute         prdf11 all rdf 100 1 1
 compute         prdf22 all rdf 100 2 2
@@ -171,9 +172,12 @@ compute         prdf44 all rdf 100 4 4
 compute         rdfclus all rdf 100 3 3 3 4 3 4 4 4 #cutoff 3.5
 compute         rdfbulk all rdf 100 1 1 1 2 2 1 2 2 #cutoff 3.5
 
-run		0 pre yes post no
-write_dump      all custom data/dump.voronoi_${en}eV id type x y z c_vor[*]
 
-fix             r2 all ave/time 1 1 1 c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
+#run		0 pre yes post no
+#write_dump      all custom data/dump.voronoi_${en}eV id type x y z c_vor[*]
 
-run		0 pre yes post no
+variable	Nrep equal ${T1}/2000
+fix             r2 all ave/time 2000 ${Nrep} ${T1} c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
+if "${en} == 50" then "fix r3 all ave/time 2000 ${Nrep} ${T1} c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
+#dump		${T1} id type c_vor[*]
+run		${T1} pre yes post no
