@@ -88,21 +88,24 @@ pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files 
 #----------------------------------------------------------------------------------GROUPS
 region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
 variable        Rs equal $R-2
-group           cluster dynamic all region sph 
+#group           cluster dynamic all region sph 
 region          core sphere 0 0 0 ${Rs} side in units box 
-group           core dynamic all region core
+#group           core dynamic all region core
 region          core2 sphere 0 0 0 ${Rs} side out units box
-region		shell intersect 2 cluster core2
+region		shell intersect 2 sph core2
 #group           shell subtract cluster core
-group		shell dynamic all region shell
+#group		shell dynamic all region shell
 group           e1 type 1 3 
 group           e2 type 2 4 
-group           se1 intersect shell e1
-group           se2 intersect shell e2
-group           ce1 intersect core e1
-group           ce2 intersect core e2
-#variable        rattot equal count(t1)/(count(t1)+count(t2))
-##variable        ratshell equal count(shellt1)/(count(shellt1)+count(shellt2))
+#group           se1 intersect shell e1
+#group           se2 intersect shell e2
+#group           ce1 intersect core e1
+#group           ce2 intersect core e2
+group		se1 dynamic e1 region shell
+group		ce1 dynamic e1 region core
+group           se2 dynamic e2 region shell
+group           ce2 dynamic e2 region core
+
 variable        ce1 equal count(ce1)/(count(ce1)+count(ce2))
 variable        se1 equal count(se1)/(count(se1)+count(se2))
 variable        ce2 equal count(ce2)/(count(ce1)+count(ce2))
@@ -254,7 +257,7 @@ variable        tstop equal $(step)+${T1}
 variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
 label           l5
 run             ${t1} start ${start_step} stop ${tstop} post no
-write_restart   data/restart.equilib_1_${dia}nm
+write_restart   data/restart.equilib_2_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_2_${dia}nm
 next            qloop
 jump            in.cluster_anneal l5
