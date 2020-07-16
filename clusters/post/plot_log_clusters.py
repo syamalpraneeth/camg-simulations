@@ -1,7 +1,7 @@
 import os , sys
 # simple test of log tool
 
-lg = log("../log.cluster_anneal_restart_3nm")
+lg = log("../log.cluster_anneal_6nm")
 #print "# of vectors =",lg.nvec
 #print "length of vectors =",lg.nlen
 #print "names of vectors =",lg.names
