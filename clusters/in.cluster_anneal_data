@@ -1,10 +1,10 @@
 ##################################################################
-##IN.CLUSTER_ANNEAL						##
-##Prepare amorphous cluster from glass bulk and anneal it	##
+##IN.CLUSTER_ANNEAL_DATA					##
+##Anneal and segregate already prepared amorphous cluster	##
 ##Dependencies	: none						##
 ##Influences: /data						##
 ##################################################################
-## ver. : 2019-09-20, Syamal Praneeth Chilakalapudi, KIT, INT	##
+## ver. : 2020-07-17, Syamal Praneeth Chilakalapudi, KIT, INT	##
 ##Author Email    :syamalpraneeth@gmail.com			##
 ##################################################################
 
@@ -53,24 +53,14 @@ atom_style      atomic
 boundary        p p p
 lattice		bcc ${lat}
 
-#region		sbox block -$s $s -$s $s -$s $s units box
-#region          box block -$s $s -$s $s -$s $s units box
-
-#create_box 	4 sbox  #4 atom types even though binary glass to support jobscripts 
-#create_atoms    1 region box				#define simulation box
-
-#set             region box type/fraction 2 ${frac} 3456 #randomly change atoms to fit composition
-#
-#
-
-read_data    data.clus_3nm
+read_data	data.clus_${dia}nm offset 2 0 0 0 0
 
 neigh_modify	every 1 delay 0 check yes
 
 newton		on
 pair_style	eam/fs					#EAM potentials best for metallic systems
-#pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files to fit with CIBD deposited cluster tracking feature with atom ID offsets
-pair_coeff      * * Cu-Zr_2.eam.fs Cu Zr
+pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files to fit with CIBD deposited cluster tracking feature with atom ID offsets
+#pair_coeff      * * Cu-Zr_2.eam.fs Cu Zr
 
 #----------------------------------------------------------------------------------GROUPS
 region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
@@ -156,13 +146,13 @@ print		'Approx diameter compute ${diamest} Nanometers'
 #--------------------------------------------------------------------------MONTE CARLO
 variable        nevery equal 100                            #number of attempts for every N steps of fix atom/swap
 variable        nat equal 400
-fix             hold all nvt temp ${T_cool} ${T_cool} 0.1           #equilibriate cluster at T_cool temperature
+fix             hold all nvt temp ${T_anneal} ${T_anneal} 0.1           #equilibriate cluster at T_cool temperature
 fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 #run            10000
 #unfix          hold
 
 timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
-fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_cool} ke no types 1 2
+fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_anneal} ke no types 1 2
 thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
 run             ${T1} every ${th} "write_restart data/restart.fixatswp.*"
 unfix           swap
