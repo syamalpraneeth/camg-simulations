@@ -74,15 +74,15 @@ for r in my_range(1,R,step):			#iterating over radii steps from 1 to maximum R
 	pe = 0
 	n = 0
 	for i in range(0,len(mat)):		#For every radius r, compare all atom coordinates and check if they fit into the shell
-		if (r-3.5) <= Rmat[i] <= r:
+		if (r-3) <= Rmat[i] <= r:
 			#print("hi")
 			cnt3 = cnt3+1
 			pe = pe + mat[i,6]	#01234567 are id type mass x y z pe radcu
 			n = n + 1		#num of atoms counted in this iteration
-			if mat[i,1] == 1:	#In the shell type==1, count it into cnt1
+			if mat[i,1] == 1 or mat[i,1] == 3:	#In the shell type==1/3, count it into cnt1
 				cnt1 = cnt1+1
-			if mat[i,1] == 2:
-				cnt2 = cnt2+1	#In the shell type==2, count it into cnt2
+			if mat[i,1] == 2 or mat[i,1] == 4:
+				cnt2 = cnt2+1	#In the shell type==2/4, count it into cnt2
 			cnt3=cnt1+cnt2
 	if r > 0:	
 		if cnt3 != 0:
