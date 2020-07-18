@@ -66,16 +66,13 @@ replicate	2 2 2
 variable	s equal $R+10
 variable	d equal lx/2
 
-write_dump	all atom dump1.atom
-
 change_box	all x delta -$s $s y delta -$s $s z delta -$s $s boundary p p p units box
 displace_atoms	all move -$d -$d -$d units box 
-write_dump	all atom dump2.atom
+
 region		box block -$s $s -$s $s -$s $s units box side out
 delete_atoms	region box
-write_dump	all atom dump3.atom
+
 change_box	all x final -$s $s y final -$s $s z final -$s $s boundary p p p units box
-write_dump	all atom dump4.atom
 velocity        all create ${T_cool} 492851 mom yes rot yes dist gaussian          #assign bulk a Gaussian temp distribtion of 300K
 
 #quit

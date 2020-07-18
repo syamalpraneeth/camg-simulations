@@ -97,7 +97,7 @@ thermo_modify   temp c1
 thermo          ${th}
 timestep        0.0010					#standard timestep 1fs for metallic systems
 
-dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz c_c2 #save atom trajectories/timestep for visualisation
+dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz #save atom trajectories/timestep for visualisation
 
 #--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
 #comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
@@ -113,7 +113,7 @@ run		${t1} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.equilib_1_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_1_${dia}nm
 next            qloop
-jump            in.cluster_anneal l2
+jump            in.cluster_anneal_data l2
 unfix		hold
 unfix		center
 
@@ -128,24 +128,24 @@ run             ${ht_inter} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.heat_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.heat_${dia}nm
 next		qloop
-jump		in.cluster_anneal l3
+jump		in.cluster_anneal_data l3
 unfix		heat
 unfix           center
 
 #--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
 #fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
 variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
-fix		f8 all ave/atom 1 1 1 x y z
+fix		f8 all ave/atom 1 1 1 x y z c_c2
 run		0 pre yes post no
 #unfix		f5
-unfix		f8
 
 variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
 variable        reclusfile string "data/restart.clus_${dia}nm"
 write_data	${clusfile}
 write_restart	${reclusfile}
-write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z
+write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z f_f8[4]
 print		'Approx diameter compute ${diamest} Nanometers'
+unfix		f8
 
 #--------------------------------------------------------------------------MONTE CARLO
 variable        nevery equal 100                            #number of attempts for every N steps of fix atom/swap
@@ -175,7 +175,7 @@ run             ${ht_inter} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.cool_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.cool_${dia}nm
 next            qloop
-jump            in.cluster_anneal l4
+jump            in.cluster_anneal_data l4
 unfix           cool
 unfix           center
 
@@ -190,15 +190,21 @@ run             ${t1} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.equilib_1_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_2_${dia}nm
 next            qloop
-jump            in.cluster_anneal l5
+jump            in.cluster_anneal_data l5
 unfix           hold
 unfix           center
 
 #--------------------------------------------------------------------------------OUTPUT
+variable        diamest equal (bound(all,xmax))*0.2     #estimate of cluster diameter. WILL fail     due to lack of perfect spherical symmetry
+fix             f8 all ave/atom 1 1 1 x y z c_c2
+run             0 pre yes post no
+#unfix          f5
+
 #variable        diamest equal (bound(all,xmax))*0.2
 variable        clusfile string "data/data.clus_MC_${dia}nm"               #output to save progress and to allow import to future simulations
 variable        reclusfile string "data/restart.clus_MC_${dia}nm"
 write_data      ${clusfile}
 write_restart   ${reclusfile}
 variable        filename string data/molfil_MC_${dia}nm.txt
-write_dump      all custom ${filename} id type mass x y z
+write_dump      all custom ${filename} id type mass x y z f_f8[4]
+unfix           f8
