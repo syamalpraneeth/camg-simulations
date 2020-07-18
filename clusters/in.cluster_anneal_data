@@ -53,6 +53,8 @@ atom_style      atomic
 boundary        p p p
 lattice		bcc ${lat}
 
+region		box block -$s $s -$s $s -$s $s units box
+create_box	4 box
 read_data	data.clus_${dia}nm add merge offset 2 0 0 0 0
 
 neigh_modify	every 1 delay 0 check yes
@@ -86,7 +88,7 @@ variable        se2 equal count(se2)/(count(se1)+count(se2))
 compute         c1 all temp
 #compute		c2 all xrd 1.5406 ${e1} ${e2} 2Theta 20 180 c 2 2 2 LP 1 echo #reduce the size of the computation by a factor of 2^3.
 compute_modify  c1 dynamic/dof yes extra/dof 0		#It seemed like a dynamic evaluation was better
-
+compute		c2 all pe/atom
 
 #--------------------------------------------------------------------------------THERMO
 thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
@@ -94,6 +96,8 @@ thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo          ${th}
 timestep        0.0010					#standard timestep 1fs for metallic systems
+
+dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz c_c2 #save atom trajectories/timestep for visualisation
 
 #--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
 #comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
@@ -154,7 +158,7 @@ fix             center all recenter 0 0 0               #recenter cluster to fac
 timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
 fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_anneal} ke no types 1 2
 thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
-run             ${T1} every ${th} "write_restart data/restart.fixatswp.*"
+run             ${T1} every ${th} "write_restart data/restart.fixatswp_${dia}nm.*"
 unfix           swap
 unfix           hold
 unfix           center

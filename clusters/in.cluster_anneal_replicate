@@ -53,25 +53,37 @@ atom_style      atomic
 boundary        p p p
 lattice		bcc ${lat}
 
-read_restart	restart.quench_6nm
-neigh_modify	every 1 delay 0 check yes
+region          sbox block -1 1 -1 1 -1 1 units box
+create_box      4 sbox
+read_data       data.quench add merge offset 2 0 0 0 0
 
+neigh_modify	every 1 delay 0 check yes
 newton		on
 pair_style	eam/fs					#EAM potentials best for metallic systems
 pair_coeff      * * ${pot} ${e1} ${e2} ${e1} ${e2}	#4 types to unify data files to fit with CIBD deposited cluster tracking feature with atom ID offsets
 
 replicate	2 2 2
 variable	s equal $R+10
-variable	d equal lx
+variable	d equal lx/2
 
-change_box	all x final -$s $s y final -$s $s z final -$s $s boundary p p p units box
+write_dump	all atom dump1.atom
+
+change_box	all x delta -$s $s y delta -$s $s z delta -$s $s boundary p p p units box
 displace_atoms	all move -$d -$d -$d units box 
+write_dump	all atom dump2.atom
 region		box block -$s $s -$s $s -$s $s units box side out
 delete_atoms	region box
-
+write_dump	all atom dump3.atom
+change_box	all x final -$s $s y final -$s $s z final -$s $s boundary p p p units box
+write_dump	all atom dump4.atom
 velocity        all create ${T_cool} 492851 mom yes rot yes dist gaussian          #assign bulk a Gaussian temp distribtion of 300K
-min_style       fire                                    #recommended by Prof. Penghui Cao, UC Irvine
-minimize        1e-10  1e-10  1000  1000
+
+#quit
+#--------------------------------------------------------------------------------COMPUTES
+compute         c1 all temp
+#compute                c2 all xrd 1.5406 ${e1} ${e2} 2Theta 20 180 c 2 2 2 LP 1 echo #reduce the size of the computation by a factor of 2^3.
+compute_modify  c1 dynamic/dof yes extra/dof 0          #It seemed like a dynamic evaluation was better
+compute         c2 all pe/atom
 
 #----------------------------------------------------------------------------------GROUPS
 region          sph sphere 0 0 0 ${R} side in units box                         #define a spherical region of intended radius to be cut out
@@ -91,18 +103,18 @@ variable        se1 equal count(se1)/(count(se1)+count(se2))
 variable        ce2 equal count(ce2)/(count(ce1)+count(ce2))
 variable        se2 equal count(se2)/(count(se1)+count(se2))
 
-#--------------------------------------------------------------------------------COMPUTES
-compute         c1 all temp
-#compute		c2 all xrd 1.5406 ${e1} ${e2} 2Theta 20 180 c 2 2 2 LP 1 echo #reduce the size of the computation by a factor of 2^3.
-compute_modify  c1 dynamic/dof yes extra/dof 0		#It seemed like a dynamic evaluation was better
-compute		c2 all pe/atom
-
 #--------------------------------------------------------------------------------THERMO
 thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
 thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo          ${th}
-timestep        0.0010					#standard timestep 1fs for metallic systems
+timestep        0.0010 
+
+#--------------------------------------------------------------------------------RELAX
+#fix             hold all nvt temp ${T_cool} ${T_cool} 0.1               #equilibriate cluster at T_cool temperature
+#run             ${T1}
+#unfix		hold
+#quit
 
 #--------------------------------------------------------------------------------MAKE CLUSTER
 #region		sph sphere 0 0 0 ${R} side out units box
@@ -115,7 +127,7 @@ delete_atoms	group del							#cut out a sphere to make a spherical cluster
 
 dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz c_c2 #save atom trajectories/timestep for visualisation
 
-#write_dump	all atom dump.atom
+write_dump	all atom dump5.atom
 #quit
 
 #--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
@@ -133,7 +145,7 @@ run		${t1} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.equilib_1_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_1_${dia}nm
 next            qloop
-jump            in.cluster_anneal l2
+jump            in.cluster_anneal_replicate l2
 unfix		hold
 unfix		center
 
@@ -148,23 +160,23 @@ run             ${ht_inter} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.heat_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.heat_${dia}nm
 next		qloop
-jump		in.cluster_anneal l3
+jump		in.cluster_anneal_replicate l3
 unfix		heat
 unfix           center
 
 #--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
 #fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
 variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
-fix		f8 all ave/atom 1 1 1 x y z
+fix		f8 all ave/atom 1 1 1 x y z c_c2
 run		0 pre yes post no
 #unfix		f5
-unfix		f8
 
 variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
 variable        reclusfile string "data/restart.clus_${dia}nm"
 write_data	${clusfile}
 write_restart	${reclusfile}
-write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z c_c2
+write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z f_f8[4]
+unfix		f8
 print		'Approx diameter compute ${diamest} Nanometers'
 
 #--------------------------------------------------------------------------MONTE CARLO
@@ -195,7 +207,7 @@ run             ${ht_inter} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.cool_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.cool_${dia}nm
 next            qloop
-jump            in.cluster_anneal l4
+jump            in.cluster_anneal_replicate l4
 unfix           cool
 unfix           center
 
@@ -210,15 +222,20 @@ run             ${t1} start ${start_step} stop ${tstop} post no
 write_restart   data/restart.equilib_1_${dia}nm
 print           "Succeeded step $(step); target step ${tstop}" append data/success.equilib_2_${dia}nm
 next            qloop
-jump            in.cluster_anneal l5
+jump            in.cluster_anneal_replicate l5
 unfix           hold
 unfix           center
 
 #--------------------------------------------------------------------------------OUTPUT
+fix             f8 all ave/atom 1 1 1 x y z c_c2
+run             0 pre yes post no
+#unfix          f5
+
 #variable        diamest equal (bound(all,xmax))*0.2
 variable        clusfile string "data/data.clus_MC_${dia}nm"               #output to save progress and to allow import to future simulations
 variable        reclusfile string "data/restart.clus_MC_${dia}nm"
 write_data      ${clusfile}
 write_restart   ${reclusfile}
 variable        filename string data/molfil_MC_${dia}nm.txt
-write_dump      all custom ${filename} id type mass x y z c_c2
+write_dump      all custom ${filename} id type mass x y z f_f8[4]
+unfix           f8
