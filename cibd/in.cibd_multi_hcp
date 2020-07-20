@@ -130,10 +130,10 @@ variable crit equal ${itr}%2
 if "(${crit})==0" then "variable poff equal $r+$r" "variable qoff equal $r/(sqrt(3))+$r" else "variable poff equal $r" "variable qoff equal 0+$r"
 include		in.deposit_layer 	#deposit&equilibrate 4 "sites" of the layer
 variable zval equal ${zval}+10
-next		itr
 #if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated film" #"set group equilibrated i_depquer 2"
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV-lay${itr}
 write_data      data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV-lay${itr}
+next		itr
 jump            in.cibd_multi_hcp label1
 
 #---------------------------------------------------OUTPUTS
