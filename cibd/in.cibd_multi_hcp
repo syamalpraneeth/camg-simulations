@@ -101,9 +101,9 @@ balance         1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${
 variable	dr equal floor(${T2}/5)
 #variable	th3 equal 5*${T2}
 #variable	dr equal ${th3}
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd id type x y z vx vy vz i_lyr i_int #i_depquer
-dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus id type x y z vx vy vz i_lyr i_int #i_depquer
-dump		d4 film custom ${dr} data/lammpstrj.dep.film id type x y z vx vy vz i_lyr i_int #i_depquer
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
+dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
+dump		d4 film custom ${dr} data/lammpstrj.dep.film_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0

@@ -11,12 +11,12 @@ label lab1
 	if "${crit2}==0" then "variable p equal 2*$r+${poff}-${BoxL}/2" else "variable p equal ${poff}-${BoxL}/2"
 		variable col1 loop 1 ${size}
 		label lab3
-		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq.log screen yes 
+		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq_${siz}nm_${en}eV.log screen yes 
 			include in.deposit_multi
 #			create_atoms 3 single $p $q ${zval} units box
 #			run 0
 			variable p equal $p+4*$r
-			print "Success dep layer ${itr}, pattern ${ind}, row ${row1}, col ${col1} at $(step)" append data/layer_success.log screen yes #for data recovery
+			print "Success dep layer ${itr}, pattern ${ind}, row ${row1}, col ${col1} at $(step)" append data/layer_success_${siz}nm_${en}eV.log screen yes #for data recovery
 			variable depcnt equal ${depcnt}+1
 			next col1
 			jump in.deposit_layer lab3
@@ -41,12 +41,12 @@ label fil
 		variable col2 loop 1 ${size}
 # print "" append data/layer_success.log screen no
 		label lab5
-		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq.log screen yes 
+		print "species ${ind} : p $p, q $q. Num deposits: ${depcnt}" append data/pq_${siz}nm_${en}eV.log screen yes 
 			include in.deposit_multi
 #			create_atoms 4 single $p $q ${zval} units box
 #			run 0
 			variable p equal $p+4*$r
-			print "Success dep layer ${itr}, pattern ${ind}, row ${row2}, col2 ${col2} at $(step)" append data/layer_success.log screen yes #for data recovery
+			print "Success dep layer ${itr}, pattern ${ind}, row ${row2}, col2 ${col2} at $(step)" append data/layer_success_${siz}nm_${en}eV.log screen yes #for data recovery
 			variable depcnt equal ${depcnt}+1
 			next col2
 			jump in.deposit_layer lab5
@@ -60,4 +60,4 @@ label fil
 label filend	
 next ind
 jump in.deposit_layer lab1
-print "Success dep full layer ${itr} of total deposits ${depcnt} -1 at $(step)" append data/layer_success.log screen yes #for data recovery
+print "Success dep full layer ${itr} of total deposits ${depcnt} -1 at $(step)" append data/layer_success_${siz}nm_${en}eV.log screen yes #for data recovery
