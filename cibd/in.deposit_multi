@@ -5,7 +5,7 @@ print "Works for iter ${itr} and index ${ind}" append     data/pq.log screen yes
 #jump in.deposit_multi filend   #for suppressing the actual cluster read and depositto debug
 
 group           cluster id <= 0
-read_data       ${clusfile} add append group cluster offset 2 0 0 0 0   #data file of cluster
+read_data       ${clusfile} add append group cluster #offset 2 0 0 0 0   #data file of cluster
 #group           substrate subtract all cluster
 group		film union film cluster
 set             group cluster i_lyr 4
