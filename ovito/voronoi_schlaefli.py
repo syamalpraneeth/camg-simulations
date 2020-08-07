@@ -10,18 +10,19 @@ cwd = os.getcwd()
 print(cwd)
 
 # Load a simulation snapshot of a Cu-Zr metallic glass.
-node = import_file("dump")
+node = import_file("data.cibd_Cu50Zr50_3nm_250eV-film")
 
 # Set atomic radii (required for polydisperse Voronoi tessellation).
 atypes = node.source.particle_properties.particle_type.type_list
-atypes[0].radius = 1.35        # Cu atomic radius (atom type 1 in input file)
-atypes[1].radius = 1.55        # Zr atomic radius (atom type 2 in input file)
-
+atypes[0].radius = 1.40        # Cu atomic radius (atom type 1 in input file)
+atypes[1].radius = 1.60        # Zr atomic radius (atom type 2 in input file)
+atypes[2].radius = 1.40        # Cu atomic radius (atom type 1 in input file)
+atypes[3].radius = 1.60        # Zr atomic radius (atom type 2 in input file)
 # Set up the Voronoi analysis modifier.
 voro = VoronoiAnalysisModifier(
     compute_indices = True,
     use_radii = True,
-    edge_count = 15, # Length after which Voronoi index vectors are truncated
+    edge_count = 18, # Length after which Voronoi index vectors are truncated
     edge_threshold = 0.1
 )
 node.modifiers.append(voro)
@@ -85,7 +86,7 @@ y_pos = numpy.arange(len(bars))+0.5
 plt.clf()
 ax = plt.gca() #you first need to get the axis handle
 ax.set_aspect(1)
-plt.bar(y_pos, height)
+plt.bar(y_pos, height, color='black')
 plt.xticks(y_pos, bars,rotation=45)
 plt.subplots_adjust(bottom=0.3, top=0.8)
 plt.ylabel('Atomic Fraction', color = 'black', fontsize='18')
@@ -93,5 +94,7 @@ plt.xlabel('Polyhedron Index', color = 'black', fontsize='18')
 plt.xlim(0.0, 11)
 #plt.subplots_adjust(bottom=0.3, top=0.8)
 
-plt.savefig('foo.png')
+plt.savefig('250eV.png')
 plt.close()
+
+fasd
