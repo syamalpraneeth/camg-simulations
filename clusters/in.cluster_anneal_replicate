@@ -124,15 +124,30 @@ delete_atoms	group del							#cut out a sphere to make a spherical cluster
 
 dump            d2 all custom ${df} data/clus_${dia}nm.lammpstrj id type x y z vx vy vz c_c2 #save atom trajectories/timestep for visualisation
 
-write_dump	all atom dump5.atom
 #quit
+
+#--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
+#fix            f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
+variable        diamest equal (bound(all,xmax))*0.2     #estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
+fix             f8 all ave/atom 1 1 1 x y z c_c2
+run             0 pre yes post no
+#unfix          f5
+
+variable        clusfile string "data/data.clus_${dia}nm"               #output to save progress and to allow import to future simulations
+variable        reclusfile string "data/restart.clus_${dia}nm"
+write_data      ${clusfile}
+write_restart   ${reclusfile}
+write_dump      all custom data/molfil_${dia}nm.txt id type mass x y z f_f8[4]
+unfix           f8
+print           'Approx diameter compute ${diamest} Nanometers'
 
 #--------------------------------------------------------------------------------BALANCE AND EQUILIBRATE
 #comm_style	tiled					#to allow for rcb style (weighted balancing) of balancing of atoms across processors
 #balance		1.0 rcb out data/tmp.balance1_${dia}	#rebalance atoms on processors after deleting atoms outside sphere
 
 velocity        all create ${T_cool} 492851 mom yes rot yes dist gaussian          #assign bulk a Gaussian temp distribtion of 300K
-fix		hold all npt temp ${T_cool} ${T_cool} 0.1 iso 0 0 0.1	#equilibriate cluster at T_cool temperature
+#fix		hold all npt temp ${T_cool} ${T_cool} 0.1 iso 0 0 0.1	#equilibriate cluster at T_cool temperature
+fix		hold all nvt temp ${T_cool} ${T_cool} 0.1
 fix		center all recenter 0 0 0		#recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
 variable        tstop equal $(step)+${T1}
 variable        start_step equal $(step)
@@ -161,37 +176,37 @@ jump		in.cluster_anneal_replicate l3
 unfix		heat
 unfix           center
 
-#--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
-#fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
-variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
-fix		f8 all ave/atom 1 1 1 x y z c_c2
-run		0 pre yes post no
-#unfix		f5
+##--------------------------------------------------------------------------------FIXES AND OUTPUTS OF UN-SEGREGATED CLUSTER
+##fix		f5 subst ave/histo/weight 1 1 1 10 80 250 c_c2[1] c_c2[2] mode vector file data/Rad2Theta_2_${dia}nm.xrd
+#variable	diamest equal (bound(all,xmax))*0.2	#estimate of cluster diameter. WILL fail due to lack of perfect spherical symmetry
+#fix		f8 all ave/atom 1 1 1 x y z c_c2
+#run		0 pre yes post no
+##unfix		f5
 
-variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
-variable        reclusfile string "data/restart.clus_${dia}nm"
-write_data	${clusfile}
-write_restart	${reclusfile}
-write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z f_f8[4]
-unfix		f8
-print		'Approx diameter compute ${diamest} Nanometers'
+#variable        clusfile string "data/data.clus_${dia}nm"		#output to save progress and to allow import to future simulations
+#variable        reclusfile string "data/restart.clus_${dia}nm"
+#write_data	${clusfile}
+#write_restart	${reclusfile}
+#write_dump	all custom data/molfil_${dia}nm.txt id type mass x y z f_f8[4]
+#unfix		f8
+#print		'Approx diameter compute ${diamest} Nanometers'
 
-#--------------------------------------------------------------------------MONTE CARLO
-variable        nevery equal 1000                            #number of attempts for every N steps of fix atom/swap
-variable        nat equal 200
-fix             hold all nvt temp ${T_anneal} ${T_anneal} 0.1           #equilibriate cluster at T_cool temperature
-fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
-#run            10000
-#unfix          hold
+##--------------------------------------------------------------------------MONTE CARLO
+#variable        nevery equal 1000                            #number of attempts for every N steps of fix atom/swap
+#variable        nat equal 200
+#fix             hold all nvt temp ${T_anneal} ${T_anneal} 0.1           #equilibriate cluster at T_cool temperature
+#fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+##run            10000
+##unfix          hold
 
-timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
-fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_anneal} ke no types 1 2
-thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
-run             ${T1} every ${th} "write_restart data/restart.fixatswp_${dia}nm.*"
-unfix           swap
-unfix           hold
-unfix           center
-thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
+#timestep        0.0005                                                  #IMPORTANT!     WE MAKE THIS CHANGE FOR THE ATOM SWAP STEP, WHICH INCLUDE MONTE CARLO!!!!!!!!!!!!!!!    !!!!!!!!
+#fix             swap all atom/swap ${nevery} ${nat} 391248 ${T_anneal} ke no types 1 2
+#thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2 f_swap[1] f_swap[2]
+#run             ${T1} every ${th} "write_restart data/restart.fixatswp_${dia}nm.*"
+#unfix           swap
+#unfix           hold
+#unfix           center
+#thermo_style    custom step pe ke press temp vol enthalpy density etotal v_ce1 v_se1 v_ce2 v_se2
 
 #-------------------------------------------------------------------------------COOLING TO END ANNEAL PROCESS
 fix             cool all nvt temp ${T_anneal} ${T_cool} 0.1 
