@@ -43,7 +43,7 @@ region		core delete
 
 #------------------------------------------------------------------4. set deposit conditions
 variable        mclus equal mass(cluster)*(1.6605e-24)*(1e-3)   #metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
-variable        E equal ${en}*(1.6e-19)*count(cluster)          #units: meV = 1.6e-19 Joules
+variable        E equal ${en}*(1.6e-19)*count(cluster)/1000          #units: meV = 1.6e-19 Joules
 variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: vel = 1 Angstr/ps = 100 m/s
 #variable        dxx   equal  "*v_BoxL"
 #variable        dyy   equal  "*v_BoxL"

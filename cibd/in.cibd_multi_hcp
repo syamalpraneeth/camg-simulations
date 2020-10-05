@@ -22,7 +22,7 @@ next            args
 variable        y equal ${args}
 next            args
 variable        frac equal $y/($x+$y)
-variable        en equal ${args}/1000
+variable        en equal ${args}
 next            args
 variable        T2 equal ${args}
 next            args
