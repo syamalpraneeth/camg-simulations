@@ -22,7 +22,7 @@ next            args
 variable        y equal ${args}
 next            args
 variable        frac equal $y/($x+$y)
-variable        en equal ${args}
+variable        en equal ${args}/1000
 next            args
 variable        T2 equal ${args}
 next            args
@@ -97,14 +97,14 @@ variable	cnt equal bound(substrate,zmax)
 
 #-------------------------------------------------------------------BALANCE
 comm_style      tiled
-balance         1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${siz}nm_${en}eV
+ibalance         1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${siz}nm_${en}meV
 
 variable	dr equal floor(${T2}/5)
 #variable	th3 equal 5*${T2}
 #variable	dr equal ${th3}
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
-dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
-dump		d4 film custom ${dr} data/lammpstrj.dep.film_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${siz}nm_${en}meV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
+dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus_${siz}nm_${en}meV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
+dump		d4 film custom ${dr} data/lammpstrj.dep.film_${siz}nm_${en}meV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0
@@ -132,14 +132,14 @@ if "(${crit})==0" then "variable poff equal $r+$r" "variable qoff equal $r/(sqrt
 include		in.deposit_layer 	#deposit&equilibrate 4 "sites" of the layer
 variable zval equal ${zval}+10
 #if "${count}>0" then "run ${T2}" "group equilibrated union equilibrated film" #"set group equilibrated i_depquer 2"
-write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV-lay${itr}
-write_data      data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV-lay${itr}
+write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}meV-lay${itr}
+write_data      data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}meV-lay${itr}
 next		itr
 jump            in.cibd_multi_hcp label1
 
 #---------------------------------------------------OUTPUTS
-write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
-write_data	data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
+write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}meV
+write_data	data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}meV
 #write_dump all custom dump3.atom id type x y z i_int
 
 #print		'Settings Summary:'
@@ -147,5 +147,5 @@ write_data	data/data.cibd_${e1}${x}${e2}${y}_${siz}nm_${en}eV
 #print		'box z+ height is: ${boxht}'
 #print           'cvel is ${cvel} Angstrom/picosecs'
 #print           'mclus is ${mclus} grams/mol'
-#print           'Energy is ${E} V'
+#print           'Energy is ${en} meV/atom'
 #----------------------------------------------------------GROUPS AND COMPUTES

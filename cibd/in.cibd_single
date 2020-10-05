@@ -22,7 +22,7 @@ next		args
 variable	y equal ${args}
 next		args
 variable	frac equal $y/($x+$y)
-variable	en equal ${args}
+variable	en equal ${args}/1000
 next		args
 variable	T1 equal ${args}
 next		args
@@ -86,7 +86,7 @@ fix		f4 fixed setforce 0 0 0
 
 #-------------------------------------------------------------------BALANCE
 comm_style      tiled
-balance		1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${dia}nm_${en}eV
+balance		1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${dia}nm_${en}meV
 
 #Snippet below not necessary because they are being imported from restart file
 #velocity	buffr scale 300 dist gaussian
@@ -160,22 +160,22 @@ velocity        cluster set 0 0 ${cvel} units box
 print		'deposit height ${dzz} Angstrom'
 print		'cvel is ${cvel} Angstrom/picosecs'
 print		'mclus is ${mclus} grams/mol'
-print		'Energy is ${E} V'
+print		'Energy is ${en} meV/atom'
 print		'total runtime ${runT} will be split into 3*fly_T + T1-2*(fly_T) for visualization purposes'
 
 #write_dump all custom data/dump.atom id type x y z i_int i_lyr
 #quit
 #-------------------------------------------------------------------DEPOSIT
 variable	dr equal "floor(v_flyT/15)"
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_int i_lyr
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}meV id type x y z vx vy vz i_int i_lyr
 variable	Tdep equal "floor(3*(v_flyT))"
 run		${Tdep}
 undump		d2
-dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}eV id type x y z vx vy vz i_int i_lyr
+dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}meV id type x y z vx vy vz i_int i_lyr
 variable	Trest equal "floor(v_T1-2*(v_flyT))"
 run		${Trest}
 
-write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
+write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}meV
 
 #variable        tz equal $(zhi)
 #variable        tz1 equal $(zhi)+2
@@ -200,10 +200,10 @@ write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
 
 
 #run		0 pre yes post no
-#write_dump      all custom data/dump.voronoi_${en}eV id type x y z c_vor[*]
+#write_dump      all custom data/dump.voronoi_${en}meV id type x y z c_vor[*]
 
 #variable	Nrep equal ${T1}/2000
-#fix             r2 all ave/time 2000 ${Nrep} ${T1} c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
+#fix             r2 all ave/time 2000 ${Nrep} ${T1} c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}meV.rdf mode vector
 #if "${en} == 50" then "fix r3 all ave/time 2000 ${Nrep} ${T1} c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
 #dump		${T1} id type c_vor[*]
 #run		${T1} pre yes post no

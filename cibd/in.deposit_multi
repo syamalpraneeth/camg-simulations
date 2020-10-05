@@ -1,6 +1,6 @@
 #------------------------------------------------------------------1. introduce cluster
 if "$a==1" then "variable ftop equal ${top}" "variable filmtop equal ${ftop}"		#Film top keeps changing withe every deposition. To account for growth of film
-print "Works for iter ${itr} and index ${ind}" append     data/pq_${siz}nm_${en}eV.log screen yes
+print "Works for iter ${itr} and index ${ind}" append     data/pq_${siz}nm_${en}meV.log screen yes
 
 #jump in.deposit_multi filend   #for suppressing the actual cluster read and depositto debug
 
@@ -43,7 +43,7 @@ region		core delete
 
 #------------------------------------------------------------------4. set deposit conditions
 variable        mclus equal mass(cluster)*(1.6605e-24)*(1e-3)   #metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
-variable        E equal ${en}*(1.6e-19)*count(cluster)          #units: eV = 1.6e-19 Joules
+variable        E equal ${en}*(1.6e-19)*count(cluster)          #units: meV = 1.6e-19 Joules
 variable        cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100     #metal units: vel = 1 Angstr/ps = 100 m/s
 #variable        dxx   equal  "*v_BoxL"
 #variable        dyy   equal  "*v_BoxL"
@@ -85,19 +85,19 @@ velocity        cluster create 300 74657362 mom yes rot yes loop local		#set tem
 velocity        cluster set 0 0 ${cvel} units box
 
 variable	boxht equal $(zhi)
-print           "New top of film for iteration $a is ${filmtop}" append data/filmtop_${siz}nm_${en}eV.log screen yes
+print           "New top of film for iteration $a is ${filmtop}" append data/filmtop_${siz}nm_${en}meV.log screen yes
 print           "approx clus diameter ${clusdia} angstrom"
 print           'deposit height ${dzz} Angstrom'
 print		'box z+ height is: ${boxht}'
 print           'cvel is ${cvel} Angstrom/picosecs'
 print           'mclus is ${mclus} grams/mol'
-print           'Energy is ${E} eV'
+print           'Energy is ${en} meV/atom'
 
 run		${runT}
 
 #variable        filmtop equal bound(film,zmax)
 #write_restart   data/restart.deposit_${ind}
-print           "Successful run iteration ${ind} at $(step)" append data/deposit_success_${siz}nm_${en}eV.log screen yes #for data recovery
+print           "Successful run iteration ${ind} at $(step)" append data/deposit_success_${siz}nm_${en}meV.log screen yes #for data recovery
 
 #-------------------------------------------------------------------CLEAN UP AFTER DEPOSIT
 group           film union film cluster
