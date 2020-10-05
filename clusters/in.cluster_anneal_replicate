@@ -38,7 +38,7 @@ variable	R equal (${dia}/2)*10 #*(${lat})
 
 variable	T_hot equal 2000
 variable	T_cool equal 300
-variable	T_anneal equal 500
+variable	T_anneal equal 1000 #500
 variable        T2 equal (${T_hot}-${T_cool})*((10^3)/(${quench_ramp})) #0.1K/ps quench rate at 1 atm pressure
 variable	ht equal (${T_anneal}-${T_cool})*((10^3)/(${anneal_ramp})) #0.5K/ps quench rate at 1 atm pressure
 
