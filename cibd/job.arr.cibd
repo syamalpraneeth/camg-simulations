@@ -11,18 +11,33 @@
 ##################################################################
 
 #---------------------------------------------------INT-NANO
-##SBATCH --nodes=4
+##SBATCH --nodes=4                                   #GPU
 ##SBATCH --ntasks-per-node=30
 ##SBATCH --time=7-00:00:00
 ##SBATCH --partition=gpu
 
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=60
-#SBATCH --time=10-00:00:00
-#SBATCH --partition=bionano
-#----------------------------------------------------FH2
+##SBATCH --nodes=2                                   #batch
+##SBATCH --ntasks-per-node=32
+##SBATCH --time=10-00:00:00
+##SBATCH --partition=batch
 
-#SBATCH --array=50 #,250,500
+##SBATCH --nodes=1                                    #short
+##SBATCH --ntasks-per-node=125
+##SBATCH --partition=short
+
+
+#----------------------------------------------------FH2
+##SBATCH --nodes=2                                   #batch
+##SBATCH --ntasks-per-node=32
+##SBATCH --time=10-00:00:00
+##SBATCH --partition=batch
+
+#SBATCH --nodes=1                                    #develop
+#SBATCH --ntasks-per-node=10
+#SBATCH --partition=develop
+
+#----------------------------------------------------#
+#SBATCH --array=60,300,600       #in meV/atom
 #SBATCH --job-name=cibd_multi_cuzr_${v}nm
 #SBATCH --output=cibd_${v}nm_%aeV.out
 #SBATCH --mail-type=END
