@@ -63,13 +63,14 @@ compute_modify  c2 dynamic/dof yes extra/dof 0
 variable	a equal bound(cluster,zmax)-bound(cluster,zmin)
 variable	b equal (bound(cluster,xmax)-bound(cluster,xmin)+bound(cluster,ymax)-bound(cluster,ymin))/2
 variable	asp equal v_a/v_b
-thermo_style    custom step pe ke press temp c_c2 v_a v_b v_asp
+thermo_style    custom step pe ke press temp c_c2 #v_a v_b v_asp
 thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo_modify	lost warn
 thermo          ${th}
 
 #-----------------------------------------------------------------FIXES FOR SUBSTRATE
+fix             corint all property/atom i_int
 fix		layrs all property/atom i_lyr
 set		group buffr i_lyr 1
 set		group statd i_lyr 2
@@ -98,34 +99,59 @@ balance		1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${dia}nm_
 #region		subst block INF INF INF INF INF INF side in
 #run		${T1}
 
-#------------------------------------------------------------------INTRODUCE CLUSTER 
+#------------------------------------------------------------------1. introduce cluster
 group		cluster id <= 0
-read_data	${clusfile} add append group cluster offset 2 0 0 0 0	#data file of cluster
+read_data	${clusfile} add append group cluster #offset 2 0 0 0 0	#data file of cluster
 group		substrate subtract all cluster
 set		group cluster i_lyr 4
 
-variable	diff equal ($(lx)-v_top)
 variable	clusdiaeval equal abs(bound(cluster,xmax)-bound(cluster,xmin))
 variable	clusdia equal ${clusdiaeval}
 print		"approx clus diameter v_clusdia angstrom"
 variable	up equal "2*(v_clusdia)"
-change_box	all z delta 0 ${up} units box
 
-#-----------------------------------------------------------------FIXES FOR CLUSTER
+#-----------------------------------------------------------------2. fixes for cluster
 fix		f5 cluster nve
+
+#------------------------------------------------------------------3. recolour
+variable        Rs equal (${clusdia}/2)-2.5 # 10*${siz}-6
+variable        z equal ${filmtop}+${clusdia}
+displace_atoms  cluster move 0 0 ${z} units box 
+variable        pp equal xcm(cluster,x)
+variable        qq equal xcm(cluster,y)
+variable        rr equal xcm(cluster,z)
+region          core sphere ${pp} ${qq} ${rr} ${Rs} side in
+group           core region core
+group           shell subtract cluster core
+group           t1 type 1 3 
+group           t2 type 2 4 
+group           shellt1 intersect shell t1
+group           shellt2 intersect shell t2
+group           interface union shell interface
+group           cores union core cores
+set             group cores i_int 2
+set             group interface i_int 3
+region          core delete
 
 #------------------------------------------------------------------SET DEPOSIT CONDITIONS
 #change_box	all z delta 0 ${up} units box
 #molecule	clus clusmol_565.txt offset 2 0 0 0 0
 variable	mclus equal mass(cluster)*(1.6605e-24)*(1e-3)	#metal units: m = grams/mol = g/(N_avogadro) = Kg/(N_avogadro*1000)
-variable	E equal ${en}*(1.6e-19)				#units: eV = 1.6e-19 Joules
+variable	E equal ${en}*(1.6e-19)*count(cluster)   	#units: eV = 1.6e-19 Joules
 variable	cvel equal (-1)*(sqrt(2*${E}/${mclus}))/100	#metal units: vel = 1 Angstr/ps = 100 m/s
+
+variable	diff equal ($(zhi)-${filmtop})
+if "${diff}<${up}" then "change_box	all z delta 0 ${up} boundary p p f units box"
+
 variable	dxx   equal  0
 variable	dyy   equal  0
 variable	dzz   equal  "v_filmtop+1.4*(v_clusdia)"
 variable	flyT equal "(v_dzz-v_filmtop)/(abs(v_cvel)*(0.001))"
 variable	runT equal "floor(v_flyT+v_T1)" #00
-displace_atoms  cluster move ${dxx} ${dyy} ${dzz} units box
+variable        zcom equal xcm(cluster,z)
+variable        zmove equal ${filmtop}+1.4*${clusdia}-${zcom} #move cluster 1.4 di    ameter lengths from surface
+
+displace_atoms  cluster move ${dxx} ${dyy} ${zmove} units box
 
 velocity        cluster create 300 74657362 mom yes rot yes
 velocity        cluster set 0 0 ${cvel} units box
@@ -137,16 +163,16 @@ print		'mclus is ${mclus} grams/mol'
 print		'Energy is ${E} V'
 print		'total runtime ${runT} will be split into 3*fly_T + T1-2*(fly_T) for visualization purposes'
 
+#write_dump all custom data/dump.atom id type x y z i_int i_lyr
 #quit
-
 #-------------------------------------------------------------------DEPOSIT
 variable	dr equal "floor(v_flyT/15)"
-#dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
-#variable	Tdep equal "floor(3*(v_flyT))"
-#run		${Tdep}
-#undump		d2
-dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}eV id type x y z vx vy vz i_lyr
-variable	Trest equal "floor(v_T1+v_flyT)"
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${dia}nm_${en}eV id type x y z vx vy vz i_int i_lyr
+variable	Tdep equal "floor(3*(v_flyT))"
+run		${Tdep}
+undump		d2
+dump            d3 cluster custom ${th} data/lammpstrj.dep.clus_${dia}nm_${en}eV id type x y z vx vy vz i_int i_lyr
+variable	Trest equal "floor(v_T1-2*(v_flyT))"
 run		${Trest}
 
 write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
@@ -165,19 +191,19 @@ write_restart   data/restart.cibd_${e1}${x}${e2}${y}_${dia}nm_${en}eV
 #group		clus type 3 4
 #compute		vor clus voronoi/atom
 
-compute         prdf11 all rdf 100 1 1
-compute         prdf22 all rdf 100 2 2
-compute         prdf33 all rdf 100 3 3
-compute         prdf44 all rdf 100 4 4
-compute         rdfclus all rdf 100 3 3 3 4 3 4 4 4 #cutoff 3.5
-compute         rdfbulk all rdf 100 1 1 1 2 2 1 2 2 #cutoff 3.5
+#compute         prdf11 all rdf 100 1 1
+#compute         prdf22 all rdf 100 2 2
+#compute         prdf33 all rdf 100 3 3
+#compute         prdf44 all rdf 100 4 4
+#compute         rdfclus all rdf 100 3 3 3 4 3 4 4 4 #cutoff 3.5
+#compute         rdfbulk all rdf 100 1 1 1 2 2 1 2 2 #cutoff 3.5
 
 
 #run		0 pre yes post no
 #write_dump      all custom data/dump.voronoi_${en}eV id type x y z c_vor[*]
 
-variable	Nrep equal ${T1}/2000
-fix             r2 all ave/time 2000 ${Nrep} ${T1} c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
-if "${en} == 50" then "fix r3 all ave/time 2000 ${Nrep} ${T1} c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
+#variable	Nrep equal ${T1}/2000
+#fix             r2 all ave/time 2000 ${Nrep} ${T1} c_prdf33[*] c_prdf44[*] c_rdfclus[*] file data/rdf_${dia}nm_${en}eV.rdf mode vector
+#if "${en} == 50" then "fix r3 all ave/time 2000 ${Nrep} ${T1} c_prdf11[*] c_prdf22[*] c_rdfbulk[*] file data/rdf_${dia}nm_bulk.rdf mode vector"
 #dump		${T1} id type c_vor[*]
-run		${T1} pre yes post no
+#run		${T1} pre yes post no
