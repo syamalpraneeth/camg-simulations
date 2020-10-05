@@ -39,7 +39,7 @@
 #----------------------------------------------------#
 #SBATCH --array=60,300,600       #in meV/atom
 #SBATCH --job-name=cibd_multi_cuzr_${v}nm
-#SBATCH --output=cibd_${v}nm_%aeV.out
+#SBATCH --output=cibd_${v}nm_%ameV.out
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=syamal.chilakalapudi@kit.edu
@@ -83,6 +83,6 @@ echo Git version of code: $(git --git-dir=$GIT_DIR rev-parse --short HEAD)
 
 #export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
 #srun --mpi=list
-srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${v}nm_${arrvar}eV
+srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${v}nm_${arrvar}meV
 #$LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.ng      #script for local run
 exit $?

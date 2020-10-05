@@ -38,7 +38,7 @@
 #----------------------------------------------------#
 #SBATCH --array=60,300,600       #in meV/atom
 #SBATCH --job-name=cibd_cuzr_${v}nm
-#SBATCH --output=cibd_${v}nm_%aeV.out
+#SBATCH --output=cibd_${v}nm_%ameV.out
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=syamal.chilakalapudi@kit.edu
@@ -77,7 +77,7 @@ echo Git version of code: $(git --git-dir=$GIT_DIR rev-parse --short HEAD)
 
 #RUN SETTINGS
 export OMP_NUM_THREADS=1 #to disable OPENMP parallelization-suggested by Timo Strunk
-#mpirun -np $SLURM_CPUS_PER_TASK $LMP_OBJ -i in.cibd_single -v args "${par[@]}" -l log.cibd_${par[7]}nm_${arrvar}eV
-srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${par[7]}nm_${arrvar}eV
+#mpirun -np $SLURM_CPUS_PER_TASK $LMP_OBJ -i in.cibd_single -v args "${par[@]}" -l log.cibd_${par[7]}nm_${arrvar}meV
+srun --mpi=pmi2 $LMP_DIR -i $IN_FIL -v args "${par[@]}" -l log.cibd_${par[7]}nm_${arrvar}meV
 
 exit $?

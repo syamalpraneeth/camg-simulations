@@ -10,4 +10,4 @@
 ##################################################################
 
 v=3
-sbatch --job-name="cibd_cuzr_"$v"nm" --output="cibd_"$v"nm_%aeV".out --export=ALL,v=$v job.arr.cibd_single
+sbatch --job-name="cibd_cuzr_"$v"nm" --output="cibd_"$v"nm_%ameV".out --export=ALL,v=$v job.arr.cibd_single
