@@ -65,9 +65,10 @@ group           eq empty
 #----------------------------------------------------------------COMPUTES AND THERMO
 compute         c1 statd temp
 compute_modify  c1 dynamic/dof yes extra/dof 0
-compute         c2 cluster temp
-compute_modify  c2 dynamic/dof yes extra/dof 0
-thermo_style    custom step pe ke press temp c_c2
+compute		c2 all pe/atom
+compute         c3 cluster temp
+compute_modify  c3 dynamic/dof yes extra/dof 0
+thermo_style    custom step pe ke press temp c_c3
 thermo_modify   format float "% .6e"
 thermo_modify   temp c1
 thermo_modify	lost warn
@@ -101,9 +102,9 @@ balance         1.02 rcb weight group 1 fixed 0.05 out data/tmp.balance1_cibd_${
 variable	dr equal floor(${T2}/5)
 #variable	th3 equal 5*${T2}
 #variable	dr equal ${th3}
-dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
-dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
-dump		d4 film custom ${dr} data/lammpstrj.dep.film_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int #i_depquer
+dump            d2 all custom ${dr} data/lammpstrj.dep.cibd_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
+dump            d3 cluster custom ${dr} data/lammpstrj.dep.clus_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
+dump		d4 film custom ${dr} data/lammpstrj.dep.film_${siz}nm_${en}eV id type x y z vx vy vz i_lyr i_int c_c2 #i_depquer
 
 #----------------------------------------------------DEPOSIT LOOP
 reset_timestep	0
@@ -119,7 +120,7 @@ variable zval equal ${zz}+5
 #run	5000
 #quit
 
-variable itr loop 1 4
+variable itr loop 1 7
 #variable itr equal 2
 variable a equal 1
 variable depcnt equal 1
