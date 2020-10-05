@@ -28,6 +28,8 @@ next            args
 variable        quench_ramp equal ${args}
 next		args
 variable	anneal_ramp equal ${args}			#0.05/ps ramp rate
+next            args
+variable        T_cool equal ${args}
 
 variable        th equal ${T1}/10			#thermo and dump values evaluated
 variable        df equal ${T1}/20
@@ -37,7 +39,7 @@ variable	s equal (${dia}/2+1)*10			#evalate box side based on cluster size
 variable	R equal (${dia}/2)*10 #*(${lat})
 
 variable	T_hot equal 2000
-variable	T_cool equal 300
+#variable	T_cool equal 300
 variable	T_anneal equal 1000 #500
 variable        T2 equal (${T_hot}-${T_cool})*((10^3)/(${quench_ramp})) #0.1K/ps quench rate at 1 atm pressure
 variable	ht equal (${T_anneal}-${T_cool})*((10^3)/(${anneal_ramp})) #0.5K/ps quench rate at 1 atm pressure
@@ -210,7 +212,7 @@ unfix           center
 
 #-------------------------------------------------------------------------------COOLING TO END ANNEAL PROCESS
 fix             cool all nvt temp ${T_anneal} ${T_cool} 0.1 
-fix             center all recenter 0 0 0               #recenter cluster to facilitata a "clean" visual and easy export into next simulations with read_data
+fix             center all recenter 0 0 0               #recenter cluster to facilitate a "clean" visual and easy export into next simulations with read_data
 variable        start_step equal $(step)
 variable        tstop equal $(step)+${ht}
 variable        qloop loop 10                                                   #this loop is to save progress at ever $t steps of the whole run
