@@ -1,0 +1,69 @@
+##################################################################
+##								##                               
+##								##
+##Dependencies	:						##
+##Influences	:						##
+##################################################################
+## ver.	: 2019--, Syamal Praneeth Chilakalapudi, KIT, INT	##                            
+##Author Email    :syamalpraneeth@gmail.com			##
+##################################################################
+
+units metal
+dimension 3
+atom_style atomic
+boundary p p p 
+lattice bcc 3 origin 0 0 0
+
+
+variable	s equal 30
+region          sbox block -$s $s -$s $s -$s 60 units box
+region          box block -$s $s -$s $s -$s -25 units box
+region          box2 block -$s $s -$s $s -20 -15  units box
+#region          sbox block -$s $s -$s $s -$s $s units box
+
+region          box3 block -30 $s -$s $s -10 -4  units box
+region          box4 block -20 $s -$s $s -4 2  units box
+region          box5 block -10 $s -$s $s 2 6  units box
+region          box6 block -$s $s -$s $s 6 10 units box
+region		cyl1 cylinder z -20 -20 4 6 10 units box
+region		cyl2 cylinder z -20 1.8 4 6 10 units box
+region		cyl3 cylinder z -20 20 4 2 10 units box
+region          cyl4 cylinder z -20 -20 4 31 34 units box
+region          cyl5 cylinder z -20 1.8 4 32 35 units box
+region          cyl6 cylinder z -20 020 4 33 36 units box
+
+region		sph sphere 10 10 40 15 units box
+region		cor sphere 10 10 40 10 side out units box
+region		sph2 sphere 10 10 40 10 units box
+region		int intersect 2 sph cor
+create_box      2 sbox
+
+#mass            1 63.546
+#mass            2 91.224
+
+create_atoms    1 region box
+create_atoms	1 region box2
+set             region box2 type/fraction 2 0.5 3456
+create_atoms	1 region sph2
+create_atoms	2 region int
+create_atoms	1 region box3
+create_atoms	2 region box4
+create_atoms	1 region box5
+create_atoms	1 region box6
+create_atoms    2 region cyl4
+create_atoms    1 region cyl5
+create_atoms    1 region cyl6
+set		region cyl1 type/fraction 2 1 3456
+set		region cyl2 type/fraction 2 0.5 3456
+set		region cyl3 type/fraction 2 0.2 3456
+set             region cyl4 type/fraction 2 1 3456
+set             region cyl5 type/fraction 2 0.5 3456
+set             region cyl6 type/fraction 2 0.2 3456
+
+newton          on
+pair_style      eam/fs
+pair_coeff      * * Cu-Zr_2.eam.fs Cu Zr
+
+
+write_data	data.config
+
