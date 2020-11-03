@@ -85,7 +85,8 @@ group		g2 type 2
 compute		prdf11 g1 rdf 100
 compute		prdf22 g2 rdf 100
 compute		rdf all rdf 100 #cutoff 3.5
-compute		vor all voronoi/atom
+#compute		vor all voronoi/atom
+compute		c2 all pe/atom
 info		computes out screen
 
 #------------------------------------------------------------------EQUILIBRATE
@@ -128,12 +129,16 @@ if 		"$(step)<${end}" then "jump in.glass lab3"
 unfix		f3
 
 fix             r1 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_0GPa_${siz}nm.rdf mode vector
-fix             v1 all ave/atom 1 1 1 c_vor[*]
+#fix             v1 all ave/atom 1 1 1 c_vor[*]
 run             0  pre yes post no
 write_dump      all xyz data/sys_0GPa_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
-write_dump	all custom data/dump.voronoi_0GPa_${siz}nm id type x y z c_vor[*]
+#write_dump	all custom data/dump.voronoi_0GPa_${siz}nm id type x y z c_vor[*]
 unfix		r1
-unfix		v1
+#unfix		v1
+
+
+jump		in.glass end
+
 
 #Melt and cool the sample
 #-----------------------------------------------------------------------HEATING
@@ -142,10 +147,10 @@ run		${ht}
 unfix		heat
 
 fix             r3 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_${T_hot}K_${siz}nm.rdf mode vector
-fix             v3 all ave/atom 1 1 1 c_vor[*]
+#fix             v3 all ave/atom 1 1 1 c_vor[*]
 run             0  pre yes post no
 write_dump      all xyz data/sys_${T_hot}K_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
-write_dump	all custom data/dump.voronoi_${T_hot}K_${siz}nm id type x y z c_vor[*]
+#write_dump	all custom data/dump.voronoi_${T_hot}K_${siz}nm id type x y z c_vor[*]
 
 #------------------------------------------------------------------EQUILIBRATE
 fix		f4 all nve
@@ -166,9 +171,17 @@ unfix		cool
 write_restart	data/restart.cooled_${siz}nm
 
 fix             r3 all ave/time 1 1 1 c_prdf11[*] c_prdf22[*] c_rdf[*] file data/rdf_${T_cool}K_${siz}nm.rdf mode vector
-fix             v3 all ave/atom 1 1 1 c_vor[*]
+#fix             v3 all ave/atom 1 1 1 c_vor[*]
 run             0  pre yes post no
 write_dump      all xyz data/sys_${T_cool}K_${siz}nm.xyz modify sort id element ${e1} ${e2} ${e1} ${e2}
-write_dump	all custom data/dump.voronoi_${T_cool}K_${siz}nm id type x y z c_vor[*]
+#write_dump	all custom data/dump.voronoi_${T_cool}K_${siz}nm id type x y z c_vor[*]
 write_data	data/data.msr_${siz}
 write_restart	data/restart.msr_${siz}
+
+label		end
+
+fix             fpe all ave/atom 1 1 1 c_c2
+run             0 pre yes post no
+write_data      data/data.msr_${siz}
+write_restart   data/restart.msr_${siz}
+write_dump	all custom data/dump.msr_${siz} id type x y z vx vy vz f_fpe
